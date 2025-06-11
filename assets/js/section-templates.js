@@ -98,7 +98,6 @@ async function fetchSectionTemplates() {
         
         // FIXED: Use WordPress REST API endpoint for templates with improved authentication
         // Use current site URL instead of hardcoded domain (guestify.ai)
-        // First try the local WordPress site
         const localApiUrl = `${window.location.origin}/wp-json/media-kit/v1/templates`;
         console.log('🌐 Using local API URL:', localApiUrl);
         
@@ -176,85 +175,6 @@ async function fetchSectionTemplates() {
         
         // 4. Load default templates from fallback object if all other methods fail
         console.warn('⚠️ Using default templates object as fallback');
-        
-        // Default templates (provide at least one basic template)
-        const defaultTemplates = {
-            'basic-content': {
-                name: 'Basic Content Section',
-                type: 'content',
-                layout: 'full-width',
-                description: 'Simple content section with title and text',
-                premium: false,
-                components: [
-                    {
-                        type: 'bio',
-                        content: {
-                            title: 'About Me',
-                            text: 'Add your professional biography here. Describe your expertise, experience, and what makes you unique.'
-                        }
-                    }
-                ]
-            },
-            'basic-hero': {
-                name: 'Simple Hero Section',
-                type: 'hero',
-                layout: 'full-width',
-                description: 'Basic hero section with name and title',
-                premium: false,
-                components: [
-                    {
-                        type: 'hero',
-                        content: {
-                            name: 'Your Name',
-                            title: 'Your Professional Title',
-                            bio: 'Add a short introduction about yourself'
-                        }
-                    }
-                ]
-            },
-            'two-column-bio': {
-                name: 'Two Column Bio',
-                type: 'content',
-                layout: 'two-column',
-                description: 'Biography with image',
-                premium: false,
-                components: {
-                    'left': [
-                        {
-                            type: 'bio',
-                            content: {
-                                title: 'About Me',
-                                text: 'Your professional biography goes here...'
-                            }
-                        }
-                    ],
-                    'right': [
-                        {
-                            type: 'image',
-                            content: {
-                                url: '',
-                                alt: 'Profile Image'
-                            }
-                        }
-                    ]
-                }
-            },
-            'social-links': {
-                name: 'Social Links',
-                type: 'contact',
-                layout: 'full-width',
-                description: 'Social media links',
-                premium: false,
-                components: [
-                    {
-                        type: 'social',
-                        content: {}
-                    }
-                ]
-            }
-        };
-        
-        console.log('📋 Loaded default templates:', Object.keys(defaultTemplates).length);
         return defaultTemplates;
     }
 }
@@ -298,7 +218,7 @@ function getAuthNonce() {
 }
 
 /**
- * Create the section template modal
+ * Create the section template modal with enhanced reliability
  */
 function createAddSectionModal() {
     console.log('Creating section template modal');
@@ -339,6 +259,161 @@ function createAddSectionModal() {
     // Add modal to body
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     
+    // Add CSS for modal styling if needed
+    const modalStyle = document.createElement('style');
+    modalStyle.textContent = `
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        
+        .section-template-modal {
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #444;
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 24px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        
+        .section-filters {
+            display: flex;
+            margin-bottom: 20px;
+            gap: 12px;
+        }
+        
+        #section-type-filter {
+            background: #333;
+            border: 1px solid #555;
+            color: #e2e8f0;
+            padding: 8px 12px;
+            border-radius: 4px;
+            flex: 0 0 200px;
+        }
+        
+        .section-search {
+            flex: 1;
+        }
+        
+        #section-search {
+            width: 100%;
+            background: #333;
+            border: 1px solid #555;
+            color: #e2e8f0;
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+        
+        .section-template-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+            gap: 16px;
+        }
+        
+        .template-card {
+            background: #333;
+            border-radius: 6px;
+            border: 1px solid #444;
+            overflow: hidden;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .template-card:hover {
+            border-color: #0ea5e9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .template-preview {
+            height: 120px;
+            background: #222;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .icon-preview {
+            font-size: 32px;
+        }
+        
+        .template-info {
+            padding: 12px;
+        }
+        
+        .template-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #e2e8f0;
+        }
+        
+        .template-description {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+        
+        .template-layout-badge {
+            display: inline-block;
+            background: #444;
+            color: #94a3b8;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
+        .premium-indicator {
+            display: inline-block;
+            background: linear-gradient(45deg, #f472b6 0%, #ec4899 100%);
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+            font-weight: 600;
+        }
+    `;
+    document.head.appendChild(modalStyle);
+    
     // Add event listeners
     const closeBtn = document.getElementById('close-section-modal');
     if (closeBtn) {
@@ -360,6 +435,23 @@ function createAddSectionModal() {
             const searchTerm = this.value.toLowerCase();
             const filter = typeFilter ? typeFilter.value : 'all';
             renderSectionTemplates(filter, searchTerm);
+        });
+    }
+    
+    // Add ESC key handler to close modal
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            hideAddSectionModal();
+        }
+    });
+    
+    // Click outside modal to close
+    const modal = document.getElementById('add-section-modal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideAddSectionModal();
+            }
         });
     }
     
@@ -457,31 +549,47 @@ function getTemplatePreviewIcon(type) {
 }
 
 /**
- * Show section template modal
+ * Show section template modal with improved reliability
  */
 function showAddSectionModal() {
     console.log('Opening template modal');
     
     // Ensure templates are loaded before showing modal
     initializeTemplates().then(() => {
-        const modal = document.getElementById('add-section-modal');
+        let modal = document.getElementById('add-section-modal');
+        
+        // If modal doesn't exist, create it
+        if (!modal) {
+            console.log('Modal not found, creating it first');
+            createAddSectionModal();
+            modal = document.getElementById('add-section-modal');
+        }
+        
         if (modal) {
+            // Show modal
             modal.style.display = 'flex';
+            
+            // Render templates
             renderSectionTemplates();
             
-            // Make sure handlers are setup (in case modal is dynamically created)
+            // Make sure handlers are setup
             setupTemplateSelectionHandlers();
-        } else {
-            console.error('Template modal not found in DOM');
-            createAddSectionModal();
             
-            const newModal = document.getElementById('add-section-modal');
-            if (newModal) {
-                newModal.style.display = 'flex';
-                renderSectionTemplates();
-                setupTemplateSelectionHandlers();
+            // Add animation class if not already present
+            if (!modal.classList.contains('modal-open')) {
+                modal.classList.add('modal-open');
             }
+            
+            console.log('Modal opened successfully');
+        } else {
+            console.error('Failed to create or find template modal');
+            
+            // Last resort - show alert if modal creation failed
+            alert('Template system not available. Please try again or contact support.');
         }
+    }).catch(error => {
+        console.error('Error opening template modal:', error);
+        alert('Could not load section templates. Please try again.');
     });
 }
 
@@ -1066,21 +1174,10 @@ function initTemplateSystem() {
                 console.error('Failed to set up template button handlers:', e);
             }
             
-            // Give up - will require manual intervention
-            console.error('❌ Template system initialization failed - builder functions unavailable');
-            
-            // Create fallback message
-            const builderContainer = document.querySelector('.builder-container');
-            if (builderContainer) {
-                const fallbackMessage = document.createElement('div');
-                fallbackMessage.className = 'template-system-error';
-                fallbackMessage.innerHTML = `
-                    <div class="error-icon">❌</div>
-                    <h3>Template System Error</h3>
-                    <p>Failed to initialize section template system. Please refresh the page or contact support.</p>
-                `;
-                builderContainer.prepend(fallbackMessage);
-            }
+            // Fall back to default templates even if initialization fails
+            sectionTemplates = defaultTemplates;
+            window.sectionTemplates = defaultTemplates;
+            console.log('✅ Default templates loaded as fallback');
         }
     };
     
@@ -1150,14 +1247,21 @@ function setupTemplateEventListeners() {
     setupTemplateSelectionHandlers();
 }
 
-// Initialize on DOM ready
+// Initialize on DOM ready with enhanced reliability
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔄 DOM ready - preparing to initialize section templates');
-    setTimeout(initTemplateSystem, 100);
+    // Increased delay to ensure builder components are fully loaded
+    setTimeout(initTemplateSystem, 200);
 });
 
 // For cases where DOM is already loaded
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
     console.log('🔄 Document already ready - initializing templates now');
-    setTimeout(initTemplateSystem, 100);
+    setTimeout(initTemplateSystem, 200);
 }
+
+// Also expose key functions globally for direct access by builder
+window.showAddSectionModal = showAddSectionModal;
+window.hideAddSectionModal = hideAddSectionModal;
+window.insertSectionTemplate = insertSectionTemplate;
+window.setupTemplateButtonHandlers = setupTemplateButtonHandlers;

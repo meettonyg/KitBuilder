@@ -1751,6 +1751,92 @@ function showUpgradePrompt(featureName = 'premium feature') {
     }
 }
 
+// Helper function to show notifications
+function showNotification(message, type = 'success') {
+    // Check if notification container exists, create if not
+    let notificationContainer = document.getElementById('notification-container');
+    
+    if (!notificationContainer) {
+        notificationContainer = document.createElement('div');
+        notificationContainer.id = 'notification-container';
+        notificationContainer.style.position = 'fixed';
+        notificationContainer.style.top = '20px';
+        notificationContainer.style.right = '20px';
+        notificationContainer.style.zIndex = '9999';
+        document.body.appendChild(notificationContainer);
+    }
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.style.backgroundColor = type === 'success' ? '#10b981' : '#ef4444';
+    notification.style.color = 'white';
+    notification.style.padding = '12px 16px';
+    notification.style.borderRadius = '6px';
+    notification.style.marginBottom = '10px';
+    notification.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+    notification.style.display = 'flex';
+    notification.style.alignItems = 'center';
+    notification.style.justifyContent = 'space-between';
+    notification.style.animation = 'notification-slide-in 0.3s ease';
+    
+    // Add message and close button
+    notification.innerHTML = `
+        <span>${message}</span>
+        <button style="background: none; border: none; color: white; cursor: pointer; margin-left: 10px;">&times;</button>
+    `;
+    
+    // Add to container
+    notificationContainer.appendChild(notification);
+    
+    // Add click handler to close button
+    const closeButton = notification.querySelector('button');
+    closeButton.addEventListener('click', () => {
+        notification.style.animation = 'notification-slide-out 0.3s ease';
+        setTimeout(() => {
+            notificationContainer.removeChild(notification);
+        }, 300);
+    });
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.style.animation = 'notification-slide-out 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notificationContainer.removeChild(notification);
+                }
+            }, 300);
+        }
+    }, 5000);
+    
+    // Add animation styles if not already added
+    if (!document.getElementById('notification-styles')) {
+        const style = document.createElement('style');
+        style.id = 'notification-styles';
+        style.textContent = `
+            @keyframes notification-slide-in {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes notification-slide-out {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+// Helper functions to show success and error messages
+function showSuccessMessage(message) {
+    showNotification(message, 'success');
+}
+
+function showErrorMessage(message) {
+    showNotification(message, 'error');
+}
+
 function isValidColor(color) {
     const s = new Option().style;
     s.color = color;
@@ -1766,6 +1852,15 @@ function adjustBrightness(color, percent) {
     return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
         (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
         (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+}
+
+// Generate a UUID helper function
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
 }
 
 // Auto-save every 30 seconds if there are changes
@@ -1791,6 +1886,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Section Management Functions
+// Direct integration of section-management-fix.js
 function setupSectionManagement() {
     console.log('🚀 Setting up section management');
     
@@ -1827,6 +1923,9 @@ function setupSectionManagement() {
         setupAddSectionButton();
         console.log('✅ Add section buttons configured');
     }, 200);
+    
+    // Apply enhanced CSS for better visibility
+    addEnhancedControlsCSS();
     
     console.log('✅ Section management setup completed successfully');
 }
@@ -2157,16 +2256,14 @@ function addSectionControls(forceAdd = false) {
             
             firstSection.classList.remove('section-hover');
         }
-        
-        // Apply enhanced CSS for better visibility
-        addEnhancedControlsCSS();
-        
     }, 100);
     
     return success;
 }
 
 // Function to add enhanced CSS for section controls
+// Direct integration from section-management-fix.js
+// Function to add enhanced CSS for section controls visibility
 function addEnhancedControlsCSS() {
     // Check if style already exists
     if (document.getElementById('enhanced-section-controls-css')) {
@@ -2233,6 +2330,72 @@ function setupAddSectionButton() {
     if (!layoutTab) {
         console.warn('⚠️  Layout tab not found');
         return;
+    }
+    
+    // Check for the "Add Section" button in the layout tab
+    // This is specifically for adding the button if it's not present
+    if (!document.getElementById('add-section-btn') && 
+        !document.getElementById('add-section-btn-primary') && 
+        layoutTab) {
+        
+        console.log('🔧 No section button found, adding it to layout tab');
+        
+        // Create section management area in layout tab if needed
+        const sectionDiv = document.createElement('div');
+        sectionDiv.innerHTML = `
+            <div class="section-title" style="margin-top: 24px;">Section Management</div>
+            <p style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
+                Add and manage sections in your media kit
+            </p>
+
+            <div class="section-controls">
+                <button class="section-btn" id="add-section-btn">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Add Section
+                </button>
+                <button class="section-btn" id="section-templates-btn" style="margin-top: 8px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <path d="M9 9h6v6H9z"></path>
+                    </svg>
+                    Browse Templates
+                </button>
+            </div>
+        `;
+        
+        layoutTab.appendChild(sectionDiv);
+        
+        // Add CSS for new buttons if needed
+        const buttonStyle = document.createElement('style');
+        buttonStyle.textContent = `
+            .section-btn {
+                background: #333;
+                border: 1px solid #555;
+                color: #94a3b8;
+                padding: 8px 12px;
+                border-radius: 4px;
+                font-size: 12px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                width: 100%;
+                justify-content: center;
+            }
+
+            .section-btn:hover {
+                border-color: #0ea5e9;
+                color: #0ea5e9;
+                background: #3a3a3a;
+            }
+        `;
+        document.head.appendChild(buttonStyle);
+        
+        console.log('✅ Section buttons added to layout tab successfully');
     }
     
     // PRIMARY ADD SECTION BUTTON
@@ -2376,6 +2539,8 @@ function setupAddSectionButton() {
             
             if (typeof showAddSectionModal === 'function') {
                 showAddSectionModal();
+            } else if (window.showAddSectionModal) {
+                window.showAddSectionModal();
             } else {
                 const sectionId = addSection('content', 'full-width');
                 console.log('Added fallback section:', sectionId);
@@ -2417,12 +2582,89 @@ function selectSection(section) {
     console.log('Section selected successfully');
 }
 
-function updateSectionControls(section) {
+function updateSectionDesignPanel(section) {
+    const editor = document.getElementById('element-editor');
+    if (!editor) return;
+    
     const sectionType = section.getAttribute('data-section-type');
     const sectionLayout = section.getAttribute('data-section-layout');
+    const sectionId = section.getAttribute('data-section-id');
     
-    console.log('Selected section:', sectionType, 'Layout:', sectionLayout);
-    // This will be expanded in Phase 3 to show section controls
+    editor.innerHTML = `
+        <div class="editor-title">
+            <span style="font-size: 16px;">📑</span>
+            Section Settings - ${sectionType.charAt(0).toUpperCase() + sectionType.slice(1)}
+        </div>
+        <div class="editor-subtitle">Configure section layout and appearance</div>
+        
+        <div class="form-group">
+            <label class="form-label">Section Layout</label>
+            <div class="layout-options">
+                <div class="layout-option ${sectionLayout === 'full-width' ? 'active' : ''}" data-layout="full-width">
+                    <div class="layout-preview full-width"></div>
+                    <div class="layout-name">Full Width</div>
+                </div>
+                <div class="layout-option ${sectionLayout === 'two-column' ? 'active' : ''}" data-layout="two-column">
+                    <div class="layout-preview two-column"></div>
+                    <div class="layout-name">Two Column</div>
+                </div>
+                <div class="layout-option ${sectionLayout === 'three-column' ? 'active' : ''}" data-layout="three-column">
+                    <div class="layout-preview three-column"></div>
+                    <div class="layout-name">Three Column</div>
+                </div>
+                <div class="layout-option ${sectionLayout === 'main-sidebar' ? 'active' : ''}" data-layout="main-sidebar">
+                    <div class="layout-preview sidebar"></div>
+                    <div class="layout-name">Main + Sidebar</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Background Color</label>
+            <div class="color-picker">
+                <input type="color" class="color-input" value="#ffffff" id="section-bg-color">
+                <input type="text" class="form-input" value="#ffffff" id="section-bg-text" style="flex: 1;">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Section Spacing</label>
+            <select class="form-input" id="section-spacing">
+                <option value="compact">Compact</option>
+                <option value="standard" selected>Standard</option>
+                <option value="spacious">Spacious</option>
+            </select>
+        </div>
+    `;
+    
+    // Setup layout option clicks
+    const layoutOptions = editor.querySelectorAll('.layout-option');
+    layoutOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            const newLayout = this.getAttribute('data-layout');
+            
+            // Show loading state
+            this.style.opacity = '0.5';
+            
+            // Change section layout
+            changeSectionLayout(sectionId, newLayout);
+            
+            // Update active state
+            layoutOptions.forEach(opt => opt.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Remove loading state
+            setTimeout(() => {
+                this.style.opacity = '1';
+            }, 200);
+            
+            console.log(`Changed section ${sectionId} to layout: ${newLayout}`);
+        });
+    });
+    
+    // Setup other controls
+    setupSectionColorControls(section);
+    setupSectionSpacingControls(section);
 }
 
 // Add section with enhanced functionality
