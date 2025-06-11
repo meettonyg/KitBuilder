@@ -58,6 +58,9 @@ class MKB_Plugin {
         add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
         add_action('wp_enqueue_scripts', array($this, 'frontend_enqueue_scripts'));
         
+        // REST API support
+        add_action('rest_api_init', array($this, 'init_api_endpoints'));
+        
         // Custom hooks
         add_action('mkb_daily_cleanup', array($this, 'daily_cleanup'));
         
@@ -79,6 +82,17 @@ class MKB_Plugin {
         }
         
         $this->plugin_data = get_plugin_data(MKB_PLUGIN_FILE);
+    }
+    
+    /**
+     * Initialize API endpoints
+     */
+    public function init_api_endpoints() {
+        // Load API endpoints class if it exists
+        $api_endpoints_file = MKB_INCLUDES_DIR . 'core/class-api-endpoints.php';
+        if (file_exists($api_endpoints_file)) {
+            require_once $api_endpoints_file;
+        }
     }
     
     /**

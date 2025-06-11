@@ -6,6 +6,83 @@
 // Template storage (populated dynamically from Component Registry)
 let sectionTemplates = {};
 
+// Fallback templates for when API is unavailable
+const defaultTemplates = {
+    'basic-content': {
+        name: 'Basic Content Section',
+        type: 'content',
+        layout: 'full-width',
+        description: 'Simple content section with title and text',
+        premium: false,
+        components: [
+            {
+                type: 'bio',
+                content: {
+                    title: 'About Me',
+                    text: 'Add your professional biography here. Describe your expertise, experience, and what makes you unique.'
+                }
+            }
+        ]
+    },
+    'basic-hero': {
+        name: 'Simple Hero Section',
+        type: 'hero',
+        layout: 'full-width',
+        description: 'Basic hero section with name and title',
+        premium: false,
+        components: [
+            {
+                type: 'hero',
+                content: {
+                    name: 'Your Name',
+                    title: 'Your Professional Title',
+                    bio: 'Add a short introduction about yourself'
+                }
+            }
+        ]
+    },
+    'two-column-bio': {
+        name: 'Two Column Bio',
+        type: 'content',
+        layout: 'two-column',
+        description: 'Biography with image',
+        premium: false,
+        components: {
+            'left': [
+                {
+                    type: 'bio',
+                    content: {
+                        title: 'About Me',
+                        text: 'Your professional biography goes here...'
+                    }
+                }
+            ],
+            'right': [
+                {
+                    type: 'image',
+                    content: {
+                        url: '',
+                        alt: 'Profile Image'
+                    }
+                }
+            ]
+        }
+    },
+    'social-links': {
+        name: 'Social Links',
+        type: 'contact',
+        layout: 'full-width',
+        description: 'Social media links',
+        premium: false,
+        components: [
+            {
+                type: 'social',
+                content: {}
+            }
+        ]
+    }
+};
+
 /**
  * Fetch section templates from the server's Template Management System
  * @returns {Promise<Object>} - Templates object
@@ -19,8 +96,13 @@ async function fetchSectionTemplates() {
         
         console.log('🔑 Using nonce for templates API:', nonce ? 'Found' : 'Not found');
         
-        // Use WordPress REST API endpoint for templates with improved authentication
-        const response = await fetch('/wp-json/media-kit/v1/templates', {
+        // FIXED: Use WordPress REST API endpoint for templates with improved authentication
+        // Use current site URL instead of hardcoded domain (guestify.ai)
+        // First try the local WordPress site
+        const localApiUrl = `${window.location.origin}/wp-json/media-kit/v1/templates`;
+        console.log('🌐 Using local API URL:', localApiUrl);
+        
+        const response = await fetch(localApiUrl, {
             method: 'GET',
             credentials: 'same-origin',
             headers: {
@@ -30,7 +112,21 @@ async function fetchSectionTemplates() {
         });
         
         if (!response.ok) {
-            console.error(`❌ Template API Error: ${response.status} ${response.statusText}`);
+            console.warn(`⚠️ Local template API returned ${response.status}: ${response.statusText}`);
+            
+            // If local API fails, try to use embedded templates from page
+            const templateDataElement = document.getElementById('media-kit-templates-data');
+            if (templateDataElement) {
+                try {
+                    const embeddedTemplates = JSON.parse(templateDataElement.textContent);
+                    console.log(`✅ Using embedded templates: ${Object.keys(embeddedTemplates).length} found`);
+                    return embeddedTemplates;
+                } catch (parseError) {
+                    console.warn('⚠️ Failed to parse embedded templates:', parseError.message);
+                }
+            }
+            
+            // If all else fails, throw the error to use fallback templates
             throw new Error(`Server returned ${response.status}: ${response.statusText}`);
         }
         
@@ -40,19 +136,45 @@ async function fetchSectionTemplates() {
     } catch (error) {
         console.error('❌ Failed to fetch templates from registry:', error.message);
         
-        // Attempt to get templates directly from builder if available
+        // IMPROVED ERROR HANDLING SEQUENCE:
+        
+        // 1. Try to get templates directly from builder if available
         if (window.MediaKitBuilder?.templates && typeof window.MediaKitBuilder.templates === 'object') {
             console.log('🔄 Using templates from MediaKitBuilder');
             return window.MediaKitBuilder.templates;
         }
         
-        // Last resort - check for templates in window global
+        // 2. Check for templates in window global
         if (window.__sectionTemplates && typeof window.__sectionTemplates === 'object') {
             console.log('🔄 Using templates from window.__sectionTemplates');
             return window.__sectionTemplates;
         }
         
-        // Load default templates from fallback object if REST API fails
+        // 3. Check for templates in data attributes
+        const templateElements = [
+            document.getElementById('media-kit-templates-data'),
+            document.getElementById('section-templates-data'),
+            document.querySelector('[data-templates]')
+        ];
+        
+        for (const element of templateElements) {
+            if (element) {
+                try {
+                    const dataSource = element.textContent || element.getAttribute('data-templates');
+                    if (dataSource) {
+                        const parsedTemplates = JSON.parse(dataSource);
+                        if (parsedTemplates && typeof parsedTemplates === 'object') {
+                            console.log('🔄 Using templates from data attribute');
+                            return parsedTemplates;
+                        }
+                    }
+                } catch (parseError) {
+                    console.warn('⚠️ Failed to parse template data:', parseError.message);
+                }
+            }
+        }
+        
+        // 4. Load default templates from fallback object if all other methods fail
         console.warn('⚠️ Using default templates object as fallback');
         
         // Default templates (provide at least one basic template)

@@ -599,21 +599,27 @@ final class Media_Kit_Builder {
         $template_manager = $this->get_system('templates');
         
         if (!$template_manager) {
-            return new WP_REST_Response(
-                array('error' => 'Template system not available'),
-                500
-            );
-        }
-        
-        // Get templates
-        $templates = $template_manager->get_templates();
-        
-        // If no templates are found, provide default templates
-        if (empty($templates)) {
+            // If template manager is not available, return default templates
             $templates = $this->get_default_templates();
+            return new WP_REST_Response($templates, 200);
         }
         
-        return new WP_REST_Response($templates, 200);
+        try {
+            // Get templates
+            $templates = $template_manager->get_templates();
+            
+            // If no templates are found, provide default templates
+            if (empty($templates)) {
+                $templates = $this->get_default_templates();
+            }
+            
+            return new WP_REST_Response($templates, 200);
+        } catch (Exception $e) {
+            // Log error and return default templates
+            error_log('Error getting templates: ' . $e->getMessage());
+            $templates = $this->get_default_templates();
+            return new WP_REST_Response($templates, 200);
+        }
     }
     
     /**

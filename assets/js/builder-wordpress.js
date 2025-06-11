@@ -1792,30 +1792,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Section Management Functions
 function setupSectionManagement() {
-    console.log('🚀 Setting up section management (Phase 3A)');
+    console.log('🚀 Setting up section management');
     
     // Initialize existing components with sections if needed
     ensureSectionsExist();
     
-    // Setup section event listeners FIRST
+    // Setup section event listeners
     setupSectionEventListeners();
     
-    // Add section controls to existing sections - CRITICAL FIX
-    // Use longer delay to ensure DOM is completely ready
-    setTimeout(() => {
-        addSectionControls();
-        console.log('✅ Section controls added after DOM ready');
-        
-        // Verify controls were added successfully
-        const controlsCount = document.querySelectorAll('.section-controls').length;
-        const sectionsCount = document.querySelectorAll('.media-kit-section').length;
-        console.log(`📊 Section controls verification: ${controlsCount} controls for ${sectionsCount} sections`);
-        
-        if (controlsCount !== sectionsCount) {
-            console.warn('⚠️  Control count mismatch - retrying in 200ms');
-            setTimeout(addSectionControls, 200);
-        }
-    }, 150);
+    // First check if sections exist in the DOM
+    const sections = document.querySelectorAll('.media-kit-section');
+    console.log(`Found ${sections.length} sections in the DOM`);
+    
+    // If no sections found, try again later
+    if (sections.length === 0) {
+        console.log('No sections found, will retry in 300ms');
+        setTimeout(setupSectionManagement, 300);
+        return;
+    }
+    
+    // Add section controls to existing sections with enhanced retry logic
+    const controlsAdded = addSectionControls();
+    
+    // If controls weren't added correctly, retry after a longer delay
+    if (!controlsAdded) {
+        console.warn('⚠️ Control count mismatch - retrying with longer delay (300ms)');
+        setTimeout(function() {
+            addSectionControls(true); // Force add with override parameter
+        }, 300);
+    }
     
     // Setup add section button with delay to ensure layout tab is ready
     setTimeout(() => {
@@ -1972,7 +1977,7 @@ function setupSectionEventListeners() {
 }
 
 // ENHANCED: addSectionControls function with comprehensive verification
-function addSectionControls() {
+function addSectionControls(forceAdd = false) {
     console.log('🔧 Adding section controls to existing sections...');
     
     const sections = document.querySelectorAll('.media-kit-section');
@@ -1980,7 +1985,7 @@ function addSectionControls() {
     
     if (sections.length === 0) {
         console.warn('⚠️  No sections found - controls not added');
-        return;
+        return false;
     }
     
     let controlsAdded = 0;
@@ -1990,10 +1995,14 @@ function addSectionControls() {
         const sectionId = section.getAttribute('data-section-id') || `section-${Date.now()}-${index}`;
         
         // Check if controls already exist to avoid duplicates
-        if (section.querySelector('.section-controls')) {
+        if (section.querySelector('.section-controls') && !forceAdd) {
             console.log(`⏭️  Section ${sectionId} already has controls, skipping`);
             controlsSkipped++;
             return;
+        } else if (section.querySelector('.section-controls') && forceAdd) {
+            // If force adding, remove existing controls first
+            console.log(`🔄 Force adding controls - removing existing controls from section ${sectionId}`);
+            section.querySelector('.section-controls').remove();
         }
         
         console.log(`➕ Adding controls to section ${sectionId}`);
@@ -2016,7 +2025,7 @@ function addSectionControls() {
         
         // Create section controls HTML with enhanced visibility
         const controlsHTML = `
-            <div class="section-controls" style="position: absolute; top: -35px; right: 10px; z-index: 1000; display: none; gap: 4px; background: #2a2a2a; border-radius: 6px; padding: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+            <div class="section-controls" style="position: absolute; top: -35px; right: 10px; z-index: 1000; display: flex; gap: 4px; background: #2a2a2a; border-radius: 6px; padding: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
                 <button class="section-control-btn" data-action="move-up" title="Move Section Up" style="background: #404040; border: none; color: #94a3b8; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 15l-6-6-6 6"></path>
@@ -2107,6 +2116,14 @@ function addSectionControls() {
     
     console.log(`📊 Section controls summary: ${controlsAdded} added, ${controlsSkipped} skipped, ${sections.length} total`);
     
+    // Verify controls were added successfully
+    const success = controlsAdded + controlsSkipped === sections.length;
+    if (!success) {
+        console.warn(`⚠️ Control count mismatch: ${controlsAdded} added + ${controlsSkipped} skipped != ${sections.length} sections`);
+    } else {
+        console.log('✅ All section controls added successfully');
+    }
+    
     // Enhanced visibility verification and fallback
     setTimeout(() => {
         const firstSection = sections[0];
@@ -2145,6 +2162,67 @@ function addSectionControls() {
         addEnhancedControlsCSS();
         
     }, 100);
+    
+    return success;
+}
+
+// Function to add enhanced CSS for section controls
+function addEnhancedControlsCSS() {
+    // Check if style already exists
+    if (document.getElementById('enhanced-section-controls-css')) {
+        return;
+    }
+    
+    // Create style element
+    const style = document.createElement('style');
+    style.id = 'enhanced-section-controls-css';
+    style.textContent = `
+        .media-kit-section {
+            position: relative;
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .media-kit-section:hover {
+            border-color: rgba(14, 165, 233, 0.3);
+        }
+        
+        .media-kit-section.selected {
+            border-color: rgba(14, 165, 233, 0.7);
+            box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.3);
+        }
+        
+        .section-controls {
+            position: absolute;
+            top: -35px;
+            right: 10px;
+            z-index: 1000;
+            display: flex;
+            gap: 4px;
+            background: #2a2a2a;
+            border-radius: 6px;
+            padding: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .media-kit-section:hover .section-controls,
+        .media-kit-section.selected .section-controls,
+        .media-kit-section.controls-visible .section-controls {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .section-control-btn:hover {
+            background: #555 !important;
+            color: #fff !important;
+        }
+    `;
+    
+    document.head.appendChild(style);
+    console.log('✅ Enhanced section control CSS added to page');
 }
 
 function setupAddSectionButton() {

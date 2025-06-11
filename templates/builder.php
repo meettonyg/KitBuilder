@@ -663,6 +663,9 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Fixed Premium Components Handler -->
 <script src="<?php echo plugin_dir_url(dirname(__FILE__)); ?>assets/js/fixed-premium-component-handler.js"></script>
 
+<!-- Section Management Fix - Direct Root Fix -->
+<script src="<?php echo plugin_dir_url(dirname(__FILE__)); ?>assets/js/section-management-fix.js"></script>
+
 <!-- No patches needed - fixed at root level -->
 
 <!-- Error checking -->
