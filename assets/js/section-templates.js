@@ -14,13 +14,21 @@ async function fetchSectionTemplates() {
     try {
         console.log('📡 Fetching section templates from registry...');
         
-        // Use WordPress REST API endpoint for templates
+        // Get nonce from multiple possible sources to ensure authentication works
+        const nonce = window.MediaKitBuilder?.config?.nonce || 
+                    window.mkbConfig?.nonce || 
+                    document.querySelector('#_wpnonce')?.value || 
+                    '';
+        
+        console.log('🔑 Using nonce for templates API:', nonce ? 'Found' : 'Not found');
+        
+        // Use WordPress REST API endpoint for templates with improved authentication
         const response = await fetch('/wp-json/media-kit/v1/templates', {
             method: 'GET',
             credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
-                'X-WP-Nonce': window.MediaKitBuilder?.config?.nonce || ''
+                'X-WP-Nonce': nonce
             }
         });
         
@@ -46,8 +54,48 @@ async function fetchSectionTemplates() {
             return window.__sectionTemplates;
         }
         
-        console.warn('⚠️ Using empty templates object as fallback');
-        return {}; // Empty fallback
+        // Load default templates from fallback object if REST API fails
+        console.warn('⚠️ Using default templates object as fallback');
+        
+        // Default templates (provide at least one basic template)
+        const defaultTemplates = {
+            'basic-content': {
+                name: 'Basic Content Section',
+                type: 'content',
+                layout: 'full-width',
+                description: 'Simple content section with title and text',
+                premium: false,
+                components: [
+                    {
+                        type: 'bio',
+                        content: {
+                            title: 'About Me',
+                            text: 'Add your professional biography here. Describe your expertise, experience, and what makes you unique.'
+                        }
+                    }
+                ]
+            },
+            'basic-hero': {
+                name: 'Simple Hero Section',
+                type: 'hero',
+                layout: 'full-width',
+                description: 'Basic hero section with name and title',
+                premium: false,
+                components: [
+                    {
+                        type: 'hero',
+                        content: {
+                            name: 'Your Name',
+                            title: 'Your Professional Title',
+                            bio: 'Add a short introduction about yourself'
+                        }
+                    }
+                ]
+            }
+        };
+        
+        console.log('📋 Loaded default templates:', Object.keys(defaultTemplates).length);
+        return defaultTemplates;
     }
 }
 

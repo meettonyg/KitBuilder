@@ -589,7 +589,7 @@ function loadDefaultData() {
 }
 
 function loadMediaKitData() {
-    console.log('📎 Loading media kit data for:', config.entryKey);
+    console.log('📎 Loading media kit data for:', config.entryKey || 'NEW KIT');
     
     showLoading('Loading your media kit...');
     
@@ -603,10 +603,12 @@ function loadMediaKitData() {
     
     // Make AJAX request to load data using updated endpoint
     const loadData = {
-        action: 'mkb_load_media_kit',
+        action: 'mkb_load_media_kit', // This is the correct endpoint matching the PHP handler
         nonce: config.nonce,
         kit_id: config.entryKey,
-        session_id: sessionId
+        session_id: sessionId,
+        user_id: config.userId,
+        access_tier: config.accessTier
     };
     
     // Use full URL from config if available
@@ -1005,25 +1007,20 @@ function generateSectionId() {
  */
 function save() {
     console.log('💾 Saving media kit...');
-    console.log('📊 Config state:', {
-        isNew: config.isNew, 
-        entryKey: config.entryKey, 
-        userId: config.userId,
-        accessTier: config.accessTier
-    });
+    showLoading('Saving your media kit...');
     
-    // Get current configuration - use cached reference to avoid using wrong variable in closure
-    const mediaKitConfig = window.MediaKitBuilder?.config || {};
+    // Get current configuration from correct source
+    const mediaKitConfig = window.MediaKitBuilder?.config || config;
     
     // Determine if this is a new kit or existing kit
-    const isNew = !mediaKitConfig.entryKey;
+    const isNew = mediaKitConfig.isNew || !mediaKitConfig.entryKey;
     
     // Choose appropriate action based on whether this is a new kit or existing one
     const action = isNew ? 'create_media_kit' : 'update_media_kit';
     
     // Collect current data from the builder
-    const legacyData = collectCurrentData(); // For backward compatibility
-    const sectionData = collectSectionsData(); // Get modern section-based data
+    const currentData = collectCurrentData();
+    collectSectionsData(); // Make sure sections data is up to date
     
     // Session ID for guest users - GENERATE IF MISSING
     let sessionId = localStorage.getItem('guestify_session_id');
@@ -1031,45 +1028,56 @@ function save() {
         sessionId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('guestify_session_id', sessionId);
         console.log('🆕 Generated new session ID:', sessionId);
-    } else {
-        console.log('🔑 Using existing session ID:', sessionId);
     }
     
-    // Prepare save data in a format the server understands
-    const saveData = {
-        action: action,
-        nonce: mediaKitConfig.nonce,
-        kit_data: JSON.stringify({
-            theme: sectionData.theme || {},
-            content: legacyData,
-            components: sectionData.components || {},
-            sections: sectionData.sections || [],
-            metadata: {
-                version: '2.0',
-                legacyData: legacyData
-            }
-        }),
-        session_id: sessionId
-    };
+    let saveData;
     
-    // For existing kits, include the entry key
-    if (!isNew) {
-        saveData.entry_key = mediaKitConfig.entryKey;
-        console.log('📝 Updating existing media kit:', mediaKitConfig.entryKey);
-    }
-    
-    // For new kits, include user ID and access tier
     if (isNew) {
-        saveData.user_id = mediaKitConfig.userId || 0;
-        saveData.access_tier = mediaKitConfig.accessTier || 'guest';
-        console.log('📝 Creating new media kit');
+        // CREATE new media kit
+        saveData = {
+            action: action,
+            user_id: mediaKitConfig.userId || 0,
+            access_tier: mediaKitConfig.accessTier || 'guest',
+            kit_data: JSON.stringify({
+                theme: mediaKitData.theme || {},
+                content: currentData,
+                components: mediaKitData.components || {},
+                sections: mediaKitData.sections || [],
+                metadata: {
+                    version: '2.0',
+                    legacyData: currentData
+                }
+            }),
+            nonce: mediaKitConfig.nonce,
+            session_id: sessionId
+        };
+        console.log('🆕 Creating new media kit...');
+    } else {
+        // UPDATE existing media kit
+        saveData = {
+            action: action,
+            entry_key: mediaKitConfig.entryKey,
+            kit_data: JSON.stringify({
+                theme: mediaKitData.theme || {},
+                content: currentData,
+                components: mediaKitData.components || {},
+                sections: mediaKitData.sections || [],
+                metadata: {
+                    version: '2.0',
+                    legacyData: currentData
+                }
+            }),
+            nonce: mediaKitConfig.nonce,
+            session_id: sessionId
+        };
+        console.log('🔄 Updating existing media kit:', mediaKitConfig.entryKey);
     }
     
     // Log the parameters being sent
     console.log('📤 Save data prepared:', action, Object.keys(saveData));
     
     // Send data to server using fetch API
-    return fetch(config.ajaxUrl || ajaxurl, {
+    return fetch(mediaKitConfig.ajaxUrl || window.ajaxurl || '/wp-admin/admin-ajax.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -1087,6 +1095,7 @@ function save() {
         return response.json();
     })
     .then(result => {
+        hideLoading();
         console.log('📊 Save result:', result.success ? '✅ Success' : '❌ Failed', result);
         
         if (result.success) {
@@ -1097,43 +1106,37 @@ function save() {
                 
                 if (newEntryKey) {
                     // Update our config
-                    mediaKitConfig.entryKey = newEntryKey;
-                    mediaKitConfig.isNew = false;
-                    console.log('🆕 New media kit created with ID:', newEntryKey);
+                    config.entryKey = newEntryKey;
+                    config.isNew = false;
+                    if (window.MediaKitBuilder && window.MediaKitBuilder.config) {
+                        window.MediaKitBuilder.config.entryKey = newEntryKey;
+                        window.MediaKitBuilder.config.isNew = false;
+                    }
+                    console.log('✅ New media kit created with ID:', newEntryKey);
                     
-                    // Update URL to include the new entry key
-                    if (history && history.replaceState) {
-                        // Handle different URL formats
-                        if (window.location.pathname.includes('/media-kit-builder/')) {
-                            // New URL format
-                            const newUrl = window.location.origin + '/media-kit-builder/' + newEntryKey;
-                            history.replaceState(null, '', newUrl);
-                        } else {
-                            // Legacy URL format with query params
-                            const url = new URL(window.location.href);
-                            url.searchParams.set('entry_key', newEntryKey);
-                            history.replaceState(null, '', url.toString());
-                        }
+                    // Update URL if possible without reload
+                    if (history && history.pushState) {
+                        const newUrl = window.location.pathname.replace('/new', '/' + newEntryKey);
+                        history.pushState({}, '', newUrl);
                     }
                 }
             }
             
-            // Update save status
             updateSaveStatus('Saved');
             markClean();
-            
             return result;
         } else {
             const errorMsg = result.data || 'Save failed';
             console.error('❌ Save failed:', errorMsg);
-            showErrorMessage('ERROR: Save failed');
+            showErrorMessage('Save failed: ' + errorMsg);
             throw new Error(errorMsg);
         }
     })
     .catch(error => {
-        console.error('💥 Save error:', error.message);
-        showErrorMessage('ERROR: Save error: ' + error.message);
+        hideLoading();
+        console.error('❌ Save failed:', error.message);
         updateSaveStatus('Failed');
+        showErrorMessage('Failed to save media kit: ' + error.message);
         throw error;
     });
 }
