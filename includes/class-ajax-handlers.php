@@ -62,10 +62,59 @@ class MKB_AJAX_Handlers {
         global $wpdb;
         $table_name = $wpdb->prefix . 'media_kits';
         
-        // Get media kit data
+        // First try to find the media kit directly
         $media_kit = $wpdb->get_row(
             $wpdb->prepare("SELECT * FROM $table_name WHERE entry_key = %s", $entry_key)
         );
+        
+        // If not found, check if it's a Formidable entry key
+        if (!$media_kit) {
+            error_log('MKB: Media kit not found directly. Checking Formidable entry: ' . $entry_key);
+            
+            // This might be a Formidable entry key - try to find the associated media kit
+            $formidable_table = $wpdb->prefix . 'frm_items';
+            $post_id = $wpdb->get_var(
+                $wpdb->prepare("SELECT post_id FROM $formidable_table WHERE id = %s", $entry_key)
+            );
+            
+            if ($post_id) {
+                error_log('MKB: Found Formidable post ID: ' . $post_id);
+                
+                // Look for media kit with this post_id
+                $media_kit = $wpdb->get_row(
+                    $wpdb->prepare("SELECT * FROM $table_name WHERE post_id = %d", $post_id)
+                );
+                
+                // If not found, create a new media kit for this post
+                if (!$media_kit) {
+                    error_log('MKB: Creating new media kit for post ID: ' . $post_id);
+                    
+                    $new_entry_key = 'mkb_' . time() . '_' . wp_generate_password(8, false);
+                    
+                    $wpdb->insert(
+                        $table_name,
+                        [
+                            'entry_key' => $new_entry_key,
+                            'post_id' => $post_id,
+                            'user_id' => get_current_user_id(),
+                            'access_tier' => 'free',
+                            'kit_data' => '{"components":[],"sections":[]}',
+                            'created_at' => current_time('mysql'),
+                            'updated_at' => current_time('mysql')
+                        ],
+                        ['%s', '%d', '%d', '%s', '%s', '%s', '%s']
+                    );
+                    
+                    // Get the newly created media kit
+                    $media_kit = $wpdb->get_row(
+                        $wpdb->prepare("SELECT * FROM $table_name WHERE entry_key = %s", $new_entry_key)
+                    );
+                    
+                    // Store the connection in post meta
+                    update_post_meta($post_id, 'mkb_entry_key', $new_entry_key);
+                }
+            }
+        }
         
         if (!$media_kit) {
             wp_send_json_error(['message' => 'Media kit not found for key: ' . $entry_key]);
@@ -83,7 +132,9 @@ class MKB_AJAX_Handlers {
         wp_send_json_success([
             'kit_data' => $kit_data,
             'entry_key' => $media_kit->entry_key,
+            'formidable_key' => $entry_key, // Return the original key for reference
             'user_id' => $media_kit->user_id,
+            'post_id' => $media_kit->post_id,
             'access_tier' => $media_kit->access_tier,
             'created_at' => $media_kit->created_at,
             'updated_at' => $media_kit->updated_at
@@ -107,6 +158,8 @@ class MKB_AJAX_Handlers {
         
         // Get data from request
         $entry_key = isset($_POST['entry_key']) ? sanitize_text_field($_POST['entry_key']) : '';
+        $formidable_key = isset($_POST['formidable_key']) ? sanitize_text_field($_POST['formidable_key']) : '';
+        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
         $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : get_current_user_id();
         $access_tier = isset($_POST['access_tier']) ? sanitize_text_field($_POST['access_tier']) : 'free';
         $kit_data = isset($_POST['kit_data']) ? $_POST['kit_data'] : '{}';
@@ -121,21 +174,36 @@ class MKB_AJAX_Handlers {
         // Current time
         $now = current_time('mysql');
         
+        // Get post_id from Formidable key if not provided
+        if (!$post_id && $formidable_key) {
+            error_log('MKB: Looking up post ID for Formidable key: ' . $formidable_key);
+            
+            $formidable_table = $wpdb->prefix . 'frm_items';
+            $post_id = $wpdb->get_var(
+                $wpdb->prepare("SELECT post_id FROM $formidable_table WHERE id = %s", $formidable_key)
+            );
+            
+            if ($post_id) {
+                error_log('MKB: Found post ID: ' . $post_id . ' for Formidable key: ' . $formidable_key);
+            }
+        }
+        
         if (empty($entry_key)) {
             // CREATE NEW MEDIA KIT
-            $entry_key = 'mk_' . time() . '_' . wp_generate_password(8, false);
+            $entry_key = 'mkb_' . time() . '_' . wp_generate_password(8, false);
             
             $result = $wpdb->insert(
                 $table_name,
                 [
                     'entry_key' => $entry_key,
+                    'post_id' => $post_id,
                     'user_id' => $user_id,
                     'access_tier' => $access_tier,
                     'kit_data' => $kit_data,
                     'created_at' => $now,
                     'updated_at' => $now
                 ],
-                ['%s', '%d', '%s', '%s', '%s', '%s']
+                ['%s', '%d', '%d', '%s', '%s', '%s', '%s']
             );
             
             if ($result === false) {
@@ -143,9 +211,17 @@ class MKB_AJAX_Handlers {
                 return;
             }
             
+            // If we have a post_id, store the connection
+            if ($post_id) {
+                error_log('MKB: Storing connection - post ID: ' . $post_id . ' to entry key: ' . $entry_key);
+                update_post_meta($post_id, 'mkb_entry_key', $entry_key);
+            }
+            
             wp_send_json_success([
                 'message' => 'Media kit created successfully',
-                'entry_key' => $entry_key
+                'entry_key' => $entry_key,
+                'formidable_key' => $formidable_key,
+                'post_id' => $post_id
             ]);
         } else {
             // UPDATE EXISTING MEDIA KIT
@@ -159,14 +235,21 @@ class MKB_AJAX_Handlers {
                 return;
             }
             
+            $update_data = [
+                'kit_data' => $kit_data,
+                'updated_at' => $now
+            ];
+            
+            // Update post_id if provided
+            if ($post_id) {
+                $update_data['post_id'] = $post_id;
+            }
+            
             $result = $wpdb->update(
                 $table_name,
-                [
-                    'kit_data' => $kit_data,
-                    'updated_at' => $now
-                ],
+                $update_data,
                 ['entry_key' => $entry_key],
-                ['%s', '%s'],
+                ['%s', '%s', '%d'],
                 ['%s']
             );
             
@@ -177,7 +260,9 @@ class MKB_AJAX_Handlers {
             
             wp_send_json_success([
                 'message' => 'Media kit updated successfully',
-                'entry_key' => $entry_key
+                'entry_key' => $entry_key,
+                'formidable_key' => $formidable_key,
+                'post_id' => $post_id
             ]);
         }
     }

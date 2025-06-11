@@ -711,7 +711,7 @@ function loadDefaultData() {
 
 /**
  * Load media kit data
- * @param {string} entryKey - The entry key to load
+ * @param {string} entryKey - The entry key to load (could be Formidable key or Media Kit key)
  * @returns {Promise} Promise that resolves when load is complete
  */
 function loadMediaKitData(entryKey) {
@@ -755,7 +755,9 @@ function loadMediaKitData(entryKey) {
             
             // Store configuration data
             config.entryKey = result.data.entry_key;
+            config.formidableKey = result.data.formidable_key || entryKey;
             config.userId = result.data.user_id;
+            config.postId = result.data.post_id;
             config.accessTier = result.data.access_tier;
             config.createdAt = result.data.created_at;
             config.updatedAt = result.data.updated_at;
@@ -763,7 +765,9 @@ function loadMediaKitData(entryKey) {
             // Also update window.MediaKitBuilder.config if it exists
             if (window.MediaKitBuilder && window.MediaKitBuilder.config) {
                 window.MediaKitBuilder.config.entryKey = result.data.entry_key;
+                window.MediaKitBuilder.config.formidableKey = result.data.formidable_key || entryKey;
                 window.MediaKitBuilder.config.userId = result.data.user_id;
+                window.MediaKitBuilder.config.postId = result.data.post_id;
                 window.MediaKitBuilder.config.accessTier = result.data.access_tier;
             }
             
@@ -1121,11 +1125,21 @@ function save() {
     // If we have an entry key, include it (update existing kit)
     if (config.entryKey) {
         saveData.append('entry_key', config.entryKey);
-    } else {
-        // Otherwise, include user data for new kit
-        saveData.append('user_id', config.userId || MediaKitBuilderData.user_id || 0);
-        saveData.append('access_tier', config.accessTier || MediaKitBuilderData.access_tier || 'guest');
     }
+    
+    // Include Formidable entry key if available
+    if (config.formidableKey) {
+        saveData.append('formidable_key', config.formidableKey);
+    }
+    
+    // Include post ID if available
+    if (config.postId) {
+        saveData.append('post_id', config.postId);
+    }
+    
+    // Include user data for all kits
+    saveData.append('user_id', config.userId || MediaKitBuilderData.user_id || 0);
+    saveData.append('access_tier', config.accessTier || MediaKitBuilderData.access_tier || 'guest');
     
     // Use correct ajax URL
     const ajaxUrl = config.ajaxUrl || window.ajaxurl || '/wp-admin/admin-ajax.php';
@@ -1181,6 +1195,16 @@ function save() {
                 showSuccessMessage('Media kit created successfully!');
             } else {
                 showSuccessMessage('Media kit saved successfully!');
+            }
+            
+            // Update post ID if provided in response
+            if (result.data && result.data.post_id) {
+                config.postId = result.data.post_id;
+                
+                // Also update window.MediaKitBuilder.config if it exists
+                if (window.MediaKitBuilder && window.MediaKitBuilder.config) {
+                    window.MediaKitBuilder.config.postId = result.data.post_id;
+                }
             }
             
             updateSaveStatus('Saved');
