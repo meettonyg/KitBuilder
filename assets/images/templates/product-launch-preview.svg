@@ -1,0 +1,104 @@
+<svg width="300" height="400" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Agency Gradient -->
+    <linearGradient id="agencyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="agencyAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+    <!-- Premium Pattern -->
+    <pattern id="premium" width="30" height="30" patternUnits="userSpaceOnUse">
+      <polygon points="15,5 20,15 15,25 10,15" fill="rgba(139,92,246,0.05)"/>
+    </pattern>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="300" height="400" fill="#fafafa"/>
+  <rect width="300" height="400" fill="url(#premium)"/>
+  
+  <!-- Premium Header -->
+  <rect width="300" height="140" fill="url(#agencyGrad)"/>
+  
+  <!-- Premium Elements -->
+  <polygon points="30,20 40,15 50,20 40,25" fill="rgba(255,255,255,0.2)"/>
+  <polygon points="250,25 260,20 270,25 260,30" fill="rgba(255,255,255,0.15)"/>
+  
+  <!-- Agency Badge -->
+  <rect x="20" y="15" width="50" height="15" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.5)" stroke-width="1" rx="7"/>
+  <text x="45" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="#ffffff">AGENCY</text>
+  
+  <!-- Company Logo Placeholder -->
+  <rect x="130" y="25" width="40" height="40" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" stroke-width="2" rx="6"/>
+  <text x="150" y="48" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#ffffff">LOGO</text>
+  
+  <!-- Company Name -->
+  <text x="150" y="85" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">InnovateTech Solutions</text>
+  
+  <!-- Tagline -->
+  <text x="150" y="102" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="rgba(255,255,255,0.9)">Revolutionary Product Launch</text>
+  
+  <!-- Launch Date -->
+  <text x="150" y="120" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="rgba(255,255,255,0.8)">🚀 Launching Q2 2024</text>
+  
+  <!-- Product Showcase Section -->
+  <text x="20" y="170" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#5b21b6">Product Showcase</text>
+  
+  <!-- Product Cards -->
+  <rect x="20" y="180" width="80" height="60" fill="rgba(139,92,246,0.1)" stroke="#8b5cf6" stroke-width="1" rx="6"/>
+  <rect x="30" y="190" width="60" height="25" fill="url(#agencyGrad)" rx="3"/>
+  <text x="60" y="205" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="#ffffff">Product A</text>
+  <text x="30" y="225" font-family="Arial, sans-serif" font-size="8" fill="#5b21b6">AI-Powered Tool</text>
+  <text x="30" y="235" font-family="Arial, sans-serif" font-size="8" fill="#7c3aed">$299/month</text>
+  
+  <rect x="110" y="180" width="80" height="60" fill="rgba(139,92,246,0.1)" stroke="#8b5cf6" stroke-width="1" rx="6"/>
+  <rect x="120" y="190" width="60" height="25" fill="url(#agencyAccent)" rx="3"/>
+  <text x="150" y="205" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="#ffffff">Product B</text>
+  <text x="120" y="225" font-family="Arial, sans-serif" font-size="8" fill="#5b21b6">Analytics Suite</text>
+  <text x="120" y="235" font-family="Arial, sans-serif" font-size="8" fill="#7c3aed">$499/month</text>
+  
+  <rect x="200" y="180" width="80" height="60" fill="rgba(139,92,246,0.1)" stroke="#8b5cf6" stroke-width="1" rx="6"/>
+  <rect x="210" y="190" width="60" height="25" fill="url(#agencyGrad)" rx="3"/>
+  <text x="240" y="205" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="#ffffff">Product C</text>
+  <text x="210" y="225" font-family="Arial, sans-serif" font-size="8" fill="#5b21b6">Enterprise API</text>
+  <text x="210" y="235" font-family="Arial, sans-serif" font-size="8" fill="#7c3aed">Custom pricing</text>
+  
+  <!-- Team Section -->
+  <text x="20" y="270" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#5b21b6">Leadership Team</text>
+  
+  <!-- Team Members -->
+  <circle cx="45" cy="295" r="15" fill="url(#agencyGrad)"/>
+  <text x="45" y="301" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#ffffff">CEO</text>
+  <text x="45" y="315" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#5b21b6">Sarah Johnson</text>
+  
+  <circle cx="105" cy="295" r="15" fill="url(#agencyAccent)"/>
+  <text x="105" y="301" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#ffffff">CTO</text>
+  <text x="105" y="315" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#5b21b6">Mike Chen</text>
+  
+  <circle cx="165" cy="295" r="15" fill="url(#agencyGrad)"/>
+  <text x="165" y="301" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#ffffff">CMO</text>
+  <text x="165" y="315" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#5b21b6">Lisa Park</text>
+  
+  <circle cx="225" cy="295" r="15" fill="url(#agencyAccent)"/>
+  <text x="225" y="301" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#ffffff">VP</text>
+  <text x="225" y="315" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#5b21b6">David Kim</text>
+  
+  <!-- Press Kit Section -->
+  <rect x="20" y="335" width="260" height="35" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1" rx="6"/>
+  <text x="30" y="350" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#5b21b6">🎯 Press Kit &amp; Media Resources</text>
+  <text x="30" y="362" font-family="Arial, sans-serif" font-size="8" fill="#7c3aed">High-res images, logos, executive bios, fact sheets</text>
+  
+  <!-- White Label Badge -->
+  <rect x="200" y="340" width="70" height="12" fill="url(#agencyGrad)" rx="6"/>
+  <text x="235" y="348" text-anchor="middle" font-family="Arial, sans-serif" font-size="7" font-weight="bold" fill="#ffffff">WHITE LABEL READY</text>
+  
+  <!-- Contact Section -->
+  <rect x="20" y="380" width="260" height="15" fill="url(#agencyGrad)" rx="4"/>
+  <text x="30" y="390" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#ffffff">Press: media@innovatetech.com</text>
+  <text x="180" y="390" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.8)">Partners: partners@innovatetech.com</text>
+  
+  <!-- Footer -->
+  <rect x="0" y="398" width="300" height="2" fill="url(#agencyGrad)"/>
+</svg>

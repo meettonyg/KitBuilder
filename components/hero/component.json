@@ -1,0 +1,69 @@
+{
+  "name": "Hero Section",
+  "slug": "hero",
+  "icon": "user",
+  "icon_svg_content": "<svg class='component-icon' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'></path><circle cx='12' cy='7' r='4'></circle></svg>",
+  "category": "essential",
+  "description": "Hero section with profile photo, name, title, and brief description.",
+  "template": "template.php",
+  "styles": "styles.css",
+  "designPanel": "design-panel.php",
+  "settings": {
+    "full_name": {
+      "type": "text",
+      "label": "Full Name",
+      "default": "",
+      "previewSelector": ".mkb-hero-name",
+      "valueSource": "textContent"
+    },
+    "professional_title": {
+      "type": "text",
+      "label": "Professional Title",
+      "default": "",
+      "previewSelector": ".mkb-hero-title",
+      "valueSource": "textContent"
+    },
+    "tagline": {
+      "type": "textarea",
+      "label": "Tagline/Brief Description",
+      "default": "",
+      "previewSelector": ".mkb-hero-tagline",
+      "valueSource": "innerHTML"
+    },
+    "background_style": {
+      "type": "select",
+      "label": "Background Style",
+      "options": {
+        "gradient": "Gradient Background",
+        "solid": "Solid Color",
+        "image": "Background Image"
+      },
+      "default": "gradient"
+    },
+    "text_alignment": {
+      "type": "select",
+      "label": "Text Alignment",
+      "options": {
+        "center": "Center",
+        "left": "Left",
+        "right": "Right"
+      },
+      "default": "center"
+    },
+    "show_profile_image": {
+      "type": "checkbox",
+      "label": "Show Profile Image",
+      "default": true
+    },
+    "profile_image_style": {
+      "type": "select",
+      "label": "Profile Image Style",
+      "options": {
+        "circle": "Circle",
+        "rounded": "Rounded Square",
+        "square": "Square"
+      },
+      "default": "circle"
+    }
+  }
+}

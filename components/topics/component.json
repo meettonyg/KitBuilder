@@ -1,0 +1,63 @@
+{
+  "name": "Speaking Topics",
+  "slug": "topics",
+  "icon": "message-circle",
+  "icon_svg_content": "<svg class='component-icon' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 11H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h4l2 3 2-3h4a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2h-4l-2-3z'></path></svg>",
+  "category": "essential",
+  "description": "Display speaking topics and areas of expertise in an organized grid layout.",
+  "template": "template.php",
+  "styles": "styles.css",
+  "designPanel": "design-panel.php",
+  "settings": {
+    "section_title": {
+      "type": "text",
+      "label": "Section Title",
+      "default": "Speaking Topics",
+      "previewSelector": ".mkb-component-title",
+      "valueSource": "textContent"
+    },
+    "content_source": {
+      "type": "select",
+      "label": "Content Source",
+      "options": {
+        "pods_topics": "Guest Topics Fields (Pods)",
+        "custom_topics": "Custom Topics (Editable in Preview)"
+      },
+      "default": "pods_topics"
+    },
+    "max_topics": {
+      "type": "number",
+      "label": "Maximum Topics to Display",
+      "default": 6,
+      "min": 1,
+      "max": 12
+    },
+    "grid_columns": {
+      "type": "select",
+      "label": "Grid Columns",
+      "options": {
+        "2": "2 Columns",
+        "3": "3 Columns", 
+        "4": "4 Columns"
+      },
+      "default": "3"
+    },
+    "topic_style": {
+      "type": "select",
+      "label": "Topic Style",
+      "options": {
+        "cards": "Card Style",
+        "badges": "Badge Style",
+        "minimal": "Minimal List"
+      },
+      "default": "cards"
+    },
+    "custom_topics": {
+      "type": "textarea",
+      "label": "Custom Topics (one per line)",
+      "default": "Topic 1\nTopic 2\nTopic 3\nTopic 4",
+      "previewSelector": ".mkb-topics-grid",
+      "valueSource": "custom"
+    }
+  }
+}
