@@ -251,7 +251,7 @@ class MKB_Admin_Interface {
         // Main builder application
         wp_enqueue_script(
             'mkb-builder',
-            MKB_BUILD_URL . 'builder.js',
+            MKB_PLUGIN_URL . 'assets/js/builder.js',
             array('mkb-components'),
             MKB_VERSION,
             true

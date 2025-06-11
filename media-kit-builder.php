@@ -64,7 +64,17 @@ class Media_Kit_Builder {
         // Admin classes
         if (is_admin()) {
             require_once MKB_PLUGIN_DIR . 'includes/admin/class-admin-menu.php';
-            require_once MKB_PLUGIN_DIR . 'includes/admin/class-builder-page.php';
+            // Check if file exists before including
+            $builder_page_path = MKB_PLUGIN_DIR . 'includes/admin/class-builder-page.php';
+            if (file_exists($builder_page_path)) {
+                require_once $builder_page_path;
+            } else {
+                add_action('admin_notices', function() {
+                    echo '<div class="notice notice-error"><p>';
+                    echo esc_html__('Media Kit Builder: Missing required file class-builder-page.php', 'media-kit-builder');
+                    echo '</p></div>';
+                });
+            }
         }
         
         // Include AJAX handlers

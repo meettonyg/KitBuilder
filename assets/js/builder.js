@@ -5,12 +5,26 @@
  * independent of WordPress or any other platform.
  */
 
-(function() {
+console.log('🔧 builder.js loading... ' + new Date().toISOString());
+
+// Define MediaKitBuilder globally for easier access
+window.MediaKitBuilder = window.MediaKitBuilder || {};
+
+// Create global reference object for state, elements and utility functions
+window.MediaKitBuilder.global = window.MediaKitBuilder.global || {};
+
+(function($) {
     'use strict';
+    
+    // Ensure jQuery is available
+    if (typeof $ === 'undefined') {
+        console.error('jQuery is not loaded. Media Kit Builder requires jQuery.');
+        return;
+    }
     
     /**
      * MediaKitBuilder Class
-     * Core builder functionality in a clean class-based architecture
+     * Core builder functionality for the Media Kit Builder
      */
     class MediaKitBuilder {
         /**
@@ -18,6 +32,8 @@
          * @param {Object} config - Configuration options
          */
         constructor(config = {}) {
+            console.log('MediaKitBuilder constructor called with config:', config);
+            
             // Configuration with defaults
             this.config = {
                 container: '#media-kit-builder',
@@ -25,12 +41,13 @@
                 componentPalette: '#component-palette',
                 autoSaveInterval: 30000,  // 30 seconds
                 maxUndoStackSize: 50,
-                debugging: false,
+                debugging: true,
                 ...config
             };
             
             // State management
             this.state = {
+                initialized: false,
                 isDirty: false,
                 isLoading: false,
                 selectedElement: null,
@@ -42,35 +59,44 @@
                 errors: []
             };
             
-            // Sub-system managers
-            this.managers = {
-                template: null,
-                component: null,
-                section: null,
-                drag: null,
-                export: null
-            };
-            
             // DOM Elements cache
-            this.elements = {
-                container: null,
-                preview: null,
-                palette: null,
-                designPanel: null,
-                saveButton: null,
-                undoButton: null,
-                redoButton: null,
-                saveStatus: null
-            };
+            this.elements = {};
             
             // Event handlers
             this.eventHandlers = {};
             
-            // Auto-save timer
-            this.autoSaveTimer = null;
+            // Expose properties globally
+            this.exposePropertiesGlobally();
             
             // Initialize
             this.init();
+        }
+        
+        /**
+         * Expose important properties and methods globally for cross-file access
+         */
+        exposePropertiesGlobally() {
+            // Store reference to this instance
+            window.MediaKitBuilder.global.instance = this;
+            
+            // Expose important properties
+            window.MediaKitBuilder.global.state = this.state;
+            window.MediaKitBuilder.global.config = this.config;
+            window.MediaKitBuilder.global.elements = this.elements;
+            
+            // Expose essential methods
+            window.MediaKitBuilder.global.getComponentTemplate = this.getComponentTemplate.bind(this);
+            window.MediaKitBuilder.global.addComponent = this.addComponent.bind(this);
+            window.MediaKitBuilder.global.addComponentToZone = this.addComponentToZone.bind(this);
+            window.MediaKitBuilder.global.saveStateToHistory = this.saveStateToHistory.bind(this);
+            window.MediaKitBuilder.global.getBuilderState = this.getBuilderState.bind(this);
+            window.MediaKitBuilder.global.markDirty = this.markDirty.bind(this);
+            window.MediaKitBuilder.global.markClean = this.markClean.bind(this);
+            
+            // Expose event system
+            window.MediaKitBuilder.global.on = this.on.bind(this);
+            window.MediaKitBuilder.global.off = this.off.bind(this);
+            window.MediaKitBuilder.global.emit = this.emit.bind(this);
         }
         
         /**
@@ -78,14 +104,21 @@
          */
         init() {
             try {
-                this.log('Initializing Media Kit Builder...');
+                console.log('Initializing Media Kit Builder...');
+                
+                if (this.state.initialized) {
+                    console.log('Media Kit Builder already initialized');
+                    return;
+                }
                 
                 // Get DOM elements
                 this.cacheElements();
                 
                 // Check required elements
                 if (!this.elements.container || !this.elements.preview || !this.elements.palette) {
-                    throw new Error('Required DOM elements not found');
+                    console.warn('Required DOM elements not found. Builder containers might not be ready yet.');
+                    this.setupDelayedInitialization();
+                    return;
                 }
                 
                 // Initialize components
@@ -96,18 +129,126 @@
                 this.setupEventListeners();
                 this.setupAutoSave();
                 
+                // Mark as initialized
+                this.state.initialized = true;
+                
                 // Emit initialized event
                 this.emit('initialized', { timestamp: new Date() });
-                this.log('Media Kit Builder initialized');
+                console.log('Media Kit Builder initialized successfully');
+                
+                // Update global references now that everything is initialized
+                this.exposePropertiesGlobally();
+            
+            // Export global instance for backward compatibility
+            window.mediaKitBuilder = this;
+            
+            // Expose initialization complete flag
+            window.MediaKitBuilder.global.initialized = true;
+            
+            // Dispatch global event for other modules
+            document.dispatchEvent(new CustomEvent('mediakit-builder-initialized', { detail: this }));
             } catch (error) {
+                console.error('Error initializing Media Kit Builder:', error);
                 this.handleError(error, 'initialization');
             }
+        }
+        
+        /**
+         * Setup delayed initialization to wait for DOM elements
+         */
+        setupDelayedInitialization() {
+            console.log('Setting up delayed initialization...');
+            
+            let attempts = 0;
+            const maxAttempts = 20; // Increased max attempts for better reliability
+            
+            const checkInterval = setInterval(() => {
+                attempts++;
+                console.log(`Attempt ${attempts} to find builder containers...`);
+                
+                this.cacheElements();
+                
+                if (this.elements.container && this.elements.preview && this.elements.palette) {
+                    console.log('Builder containers found, continuing initialization...');
+                    clearInterval(checkInterval);
+                    this.init();
+                } else if (attempts >= maxAttempts) {
+                    console.error('Failed to find builder containers after multiple attempts');
+                    clearInterval(checkInterval);
+                    
+                    // Try to create containers as a last resort
+                    this.createContainers();
+                    
+                    // Also emit an error event that can be handled by debug tools
+                    if (this.emit) {
+                        this.emit('initialization-failed', {
+                            reason: 'containers-not-found',
+                            attempts: attempts,
+                            elements: {
+                                container: !!this.elements.container,
+                                preview: !!this.elements.preview,
+                                palette: !!this.elements.palette
+                            }
+                        });
+                    }
+                }
+            }, 500);
+        }
+        
+        /**
+         * Create containers if they don't exist
+         */
+        createContainers() {
+            console.log('Attempting to create builder containers...');
+            
+            // Check if containers already exist
+            if (document.querySelector(this.config.container)) {
+                console.log('Builder container already exists');
+                return;
+            }
+            
+            // Find a suitable location for the builder
+            const content = document.querySelector('.content-area, .entry-content, main, #content, .site-content');
+            
+            // Create builder container
+            const container = document.createElement('div');
+            container.id = this.config.container.replace('#', '');
+            container.className = 'media-kit-builder';
+            
+            // Create preview container
+            const preview = document.createElement('div');
+            preview.id = this.config.previewContainer.replace('#', '');
+            preview.className = 'media-kit-preview';
+            
+            // Create component palette
+            const palette = document.createElement('div');
+            palette.id = this.config.componentPalette.replace('#', '');
+            palette.className = 'component-palette';
+            
+            // Add components to builder
+            container.appendChild(preview);
+            container.appendChild(palette);
+            
+            // Add builder to page
+            if (content) {
+                content.appendChild(container);
+            } else {
+                document.body.appendChild(container);
+            }
+            
+            console.log('Builder containers created');
+            
+            // Cache elements and try initialization again
+            this.cacheElements();
+            this.init();
         }
         
         /**
          * Cache DOM elements for better performance
          */
         cacheElements() {
+            console.log('Caching DOM elements...');
+            
             this.elements = {
                 container: document.querySelector(this.config.container),
                 preview: document.querySelector(this.config.previewContainer),
@@ -120,6 +261,11 @@
                 tabs: document.querySelectorAll('.sidebar-tab'),
                 tabContents: document.querySelectorAll('.tab-content')
             };
+            
+            console.log('DOM elements cached:', 
+                        'container:', !!this.elements.container, 
+                        'preview:', !!this.elements.preview, 
+                        'palette:', !!this.elements.palette);
         }
         
         /**
@@ -127,9 +273,11 @@
          */
         setupTabs() {
             if (!this.elements.tabs || !this.elements.tabContents) {
-                this.log('Tabs elements not found', 'warn');
+                console.warn('Tabs elements not found');
                 return;
             }
+            
+            console.log('Setting up tabs...');
             
             this.elements.tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -146,13 +294,15 @@
                             tabContent.classList.add('active');
                             this.emit('tab-changed', { tab: tabId });
                         } else {
-                            this.log(`Tab content #${tabId}-tab not found`, 'warn');
+                            console.warn(`Tab content #${tabId}-tab not found`);
                         }
                     } catch (error) {
                         this.handleError(error, 'tab switching');
                     }
                 });
             });
+            
+            console.log('Tabs setup complete');
         }
         
         /**
@@ -160,9 +310,19 @@
          */
         setupComponentPalette() {
             try {
-                const components = this.elements.palette.querySelectorAll('.component-item');
+                console.log('Setting up component palette...');
                 
-                components.forEach(component => {
+                if (!this.elements.palette) {
+                    console.warn('Component palette not found');
+                    return;
+                }
+                
+                const components = this.elements.palette.querySelectorAll('.component-item');
+                console.log(`Found ${components.length} components in palette`);
+                
+                components.forEach((component, index) => {
+                    console.log(`Setting up component ${index + 1}: ${component.getAttribute('data-component')}`);
+                    
                     // Drag start
                     component.addEventListener('dragstart', e => {
                         try {
@@ -174,6 +334,8 @@
                             component.classList.add('dragging');
                             
                             this.emit('component-drag-start', { type: componentType, element: component });
+                            
+                            console.log(`Component drag started: ${componentType}`);
                         } catch (error) {
                             this.handleError(error, 'component drag start');
                         }
@@ -190,6 +352,8 @@
                             const componentType = component.getAttribute('data-component');
                             const isPremium = component.hasAttribute('data-premium') && 
                                               component.getAttribute('data-premium') === 'true';
+                            
+                            console.log(`Component clicked: ${componentType}, premium: ${isPremium}`);
                             
                             // Check if premium component is allowed
                             if (isPremium && this.config.wpData && 
@@ -210,6 +374,8 @@
                         }
                     });
                 });
+                
+                console.log('Component palette setup complete');
             } catch (error) {
                 this.handleError(error, 'component palette setup');
             }
@@ -220,9 +386,25 @@
          */
         setupDragAndDrop() {
             try {
-                const dropZones = this.elements.preview.querySelectorAll('.drop-zone');
+                console.log('Setting up drag and drop...');
                 
-                dropZones.forEach(zone => {
+                if (!this.elements.preview) {
+                    console.warn('Preview container not found');
+                    return;
+                }
+                
+                const dropZones = this.elements.preview.querySelectorAll('.drop-zone');
+                console.log(`Found ${dropZones.length} drop zones`);
+                
+                if (dropZones.length === 0) {
+                    console.log('No drop zones found, creating initial drop zone');
+                    this.createInitialDropZone();
+                    return;
+                }
+                
+                dropZones.forEach((zone, index) => {
+                    console.log(`Setting up drop zone ${index + 1}`);
+                    
                     // Handle dragover
                     zone.addEventListener('dragover', e => {
                         e.preventDefault();
@@ -241,6 +423,7 @@
                             zone.classList.remove('drag-over');
                             
                             const transferData = e.dataTransfer.getData('text/plain');
+                            console.log(`Drop event with data: ${transferData}`);
                             
                             // Handle component drop from palette
                             if (transferData && !transferData.includes('component-')) {
@@ -270,6 +453,8 @@
                                         component: component,
                                         target: zone
                                     });
+                                    
+                                    console.log(`Component ${componentId} moved`);
                                 }
                             }
                         } catch (error) {
@@ -277,8 +462,72 @@
                         }
                     });
                 });
+                
+                console.log('Drag and drop setup complete');
             } catch (error) {
                 this.handleError(error, 'drag and drop setup');
+            }
+        }
+        
+        /**
+         * Create initial drop zone
+         */
+        createInitialDropZone() {
+            try {
+                console.log('Creating initial drop zone...');
+                
+                if (!this.elements.preview) {
+                    console.warn('Preview container not found');
+                    return;
+                }
+                
+                // Clear preview container
+                this.elements.preview.innerHTML = '';
+                
+                // Create initial section if using sections
+                const section = document.createElement('div');
+                section.className = 'media-kit-section';
+                section.setAttribute('data-section-id', 'section-' + Date.now());
+                section.setAttribute('data-section-type', 'content');
+                section.setAttribute('data-section-layout', 'full-width');
+                
+                // Create section content
+                const sectionContent = document.createElement('div');
+                sectionContent.className = 'section-content layout-full-width';
+                
+                // Create column
+                const column = document.createElement('div');
+                column.className = 'section-column';
+                column.setAttribute('data-column', 'full');
+                
+                // Create drop zone
+                const dropZone = document.createElement('div');
+                dropZone.className = 'drop-zone empty';
+                dropZone.setAttribute('data-zone', 'zone-' + Date.now());
+                
+                // Add empty state message
+                const emptyState = document.createElement('div');
+                emptyState.className = 'empty-state';
+                emptyState.innerHTML = `
+                    <div class="empty-state-icon">📝</div>
+                    <div class="empty-state-title">Your Media Kit is Empty</div>
+                    <div class="empty-state-desc">Drag components from the sidebar or click the "Add Component" button to get started.</div>
+                `;
+                
+                dropZone.appendChild(emptyState);
+                
+                // Assemble the structure
+                column.appendChild(dropZone);
+                sectionContent.appendChild(column);
+                section.appendChild(sectionContent);
+                this.elements.preview.appendChild(section);
+                
+                // Setup drop zone event listeners
+                this.setupDragAndDrop();
+                
+                console.log('Initial drop zone created');
+            } catch (error) {
+                this.handleError(error, 'create initial drop zone');
             }
         }
         
@@ -288,12 +537,25 @@
          */
         addComponent(componentType) {
             try {
+                console.log(`Adding component: ${componentType}`);
+                
                 // Find the first drop zone
                 const dropZone = this.elements.preview.querySelector('.drop-zone');
                 if (dropZone) {
                     this.addComponentToZone(componentType, dropZone);
                 } else {
-                    throw new Error('No drop zone found in preview');
+                    console.warn('No drop zone found in preview');
+                    this.createInitialDropZone();
+                    
+                    // Try again with the new drop zone
+                    setTimeout(() => {
+                        const newDropZone = this.elements.preview.querySelector('.drop-zone');
+                        if (newDropZone) {
+                            this.addComponentToZone(componentType, newDropZone);
+                        } else {
+                            throw new Error('Failed to create drop zone');
+                        }
+                    }, 100);
                 }
             } catch (error) {
                 this.handleError(error, 'add component');
@@ -307,10 +569,18 @@
          */
         addComponentToZone(componentType, dropZone) {
             try {
+                console.log(`Adding component ${componentType} to drop zone`);
+                
                 // Get component template
                 const template = this.getComponentTemplate(componentType);
                 if (!template) {
                     throw new Error(`Component template not found: ${componentType}`);
+                }
+                
+                // Remove empty state if present
+                const emptyState = dropZone.querySelector('.empty-state');
+                if (emptyState) {
+                    emptyState.remove();
                 }
                 
                 // Create component element
@@ -345,6 +615,8 @@
                     id: componentId,
                     element: component
                 });
+                
+                console.log(`Component ${componentType} added with ID: ${componentId}`);
                 
                 return componentId;
             } catch (error) {
@@ -479,11 +751,74 @@
         }
         
         /**
-         * Setup event listeners for a component
+         * Event system: Add event listener
+         * @param {string} event - Event name
+         * @param {Function} handler - Event handler
+         */
+        on(event, handler) {
+            try {
+                if (!this.eventHandlers[event]) {
+                    this.eventHandlers[event] = [];
+                }
+                this.eventHandlers[event].push(handler);
+                
+                return () => this.off(event, handler); // Return unsubscribe function
+            } catch (error) {
+                this.handleError(error, 'event subscription');
+            }
+        }
+        
+        /**
+         * Event system: Remove event listener
+         * @param {string} event - Event name
+         * @param {Function} handler - Event handler
+         */
+        off(event, handler) {
+            try {
+                if (!this.eventHandlers[event]) return;
+                this.eventHandlers[event] = this.eventHandlers[event].filter(h => h !== handler);
+            } catch (error) {
+                this.handleError(error, 'event unsubscription');
+            }
+        }
+        
+        /**
+         * Event system: Emit event
+         * @param {string} event - Event name
+         * @param {*} data - Event data
+         */
+        emit(event, data) {
+            try {
+                if (!this.eventHandlers[event]) return;
+                
+                // Include event name and timestamp in data
+                const eventData = {
+                    ...data,
+                    _event: event,
+                    _timestamp: new Date()
+                };
+                
+                // Call each handler with data
+                this.eventHandlers[event].forEach(handler => {
+                    try {
+                        handler(eventData);
+                    } catch (error) {
+                        this.handleError(error, `event handler for ${event}`);
+                    }
+                });
+            } catch (error) {
+                this.handleError(error, 'event emission');
+            }
+        }
+        
+        /**
+         * Setup element event listeners
          * @param {HTMLElement} element - Component element
          */
         setupElementEventListeners(element) {
             try {
+                console.log(`Setting up event listeners for component: ${element.getAttribute('data-component')}`);
+                
                 // Select element on click
                 element.addEventListener('click', e => {
                     try {
@@ -591,169 +926,12 @@
         }
         
         /**
-         * Add a new topic item
-         * @param {HTMLElement} element - Topics component
-         */
-        addTopicItem(element) {
-            try {
-                const topicsContainer = element.querySelector('.topics-container');
-                const addButton = element.querySelector('.add-topic');
-                
-                if (topicsContainer && addButton) {
-                    // Create new topic item
-                    const topicItem = document.createElement('div');
-                    topicItem.className = 'topic-item';
-                    topicItem.innerHTML = `<div class="topic-text" contenteditable="true">New Topic</div>`;
-                    
-                    // Insert before add button
-                    topicsContainer.insertBefore(topicItem, addButton);
-                    
-                    // Setup contenteditable
-                    const textElement = topicItem.querySelector('.topic-text');
-                    textElement.addEventListener('input', () => this.markDirty());
-                    textElement.addEventListener('blur', () => this.saveStateToHistory());
-                    
-                    // Select the new topic text
-                    textElement.focus();
-                    document.execCommand('selectAll', false, null);
-                    
-                    // Save state to history
-                    this.saveStateToHistory();
-                    this.markDirty();
-                }
-            } catch (error) {
-                this.handleError(error, 'add topic item');
-            }
-        }
-        
-        /**
-         * Add a new question item
-         * @param {HTMLElement} element - Questions component
-         */
-        addQuestionItem(element) {
-            try {
-                const questionsContainer = element.querySelector('.questions-container');
-                const addButton = element.querySelector('.add-question');
-                
-                if (questionsContainer && addButton) {
-                    // Create new question item
-                    const questionItem = document.createElement('div');
-                    questionItem.className = 'question-item';
-                    questionItem.innerHTML = `<div class="question-text" contenteditable="true">New Question</div>`;
-                    
-                    // Insert before add button
-                    questionsContainer.insertBefore(questionItem, addButton);
-                    
-                    // Setup contenteditable
-                    const textElement = questionItem.querySelector('.question-text');
-                    textElement.addEventListener('input', () => this.markDirty());
-                    textElement.addEventListener('blur', () => this.saveStateToHistory());
-                    
-                    // Select the new question text
-                    textElement.focus();
-                    document.execCommand('selectAll', false, null);
-                    
-                    // Save state to history
-                    this.saveStateToHistory();
-                    this.markDirty();
-                }
-            } catch (error) {
-                this.handleError(error, 'add question item');
-            }
-        }
-        
-        /**
-         * Add a new social media item
-         * @param {HTMLElement} element - Social component
-         */
-        addSocialItem(element) {
-            try {
-                const socialContainer = element.querySelector('.social-container');
-                const addButton = element.querySelector('.add-social');
-                
-                if (socialContainer && addButton) {
-                    // Create new social item
-                    const socialItem = document.createElement('div');
-                    socialItem.className = 'social-item';
-                    socialItem.innerHTML = `
-                        <div class="social-platform">
-                            <select class="platform-select">
-                                <option value="Facebook">Facebook</option>
-                                <option value="Twitter">Twitter</option>
-                                <option value="Instagram">Instagram</option>
-                                <option value="LinkedIn">LinkedIn</option>
-                                <option value="YouTube">YouTube</option>
-                                <option value="TikTok">TikTok</option>
-                                <option value="Pinterest">Pinterest</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="social-link" contenteditable="true">https://</div>
-                    `;
-                    
-                    // Insert before add button
-                    socialContainer.insertBefore(socialItem, addButton);
-                    
-                    // Setup contenteditable
-                    const linkElement = socialItem.querySelector('.social-link');
-                    linkElement.addEventListener('input', () => this.markDirty());
-                    linkElement.addEventListener('blur', () => this.saveStateToHistory());
-                    
-                    // Setup select
-                    const selectElement = socialItem.querySelector('.platform-select');
-                    selectElement.addEventListener('change', () => {
-                        const platform = selectElement.value;
-                        
-                        // If "Other" is selected, replace with a text input
-                        if (platform === 'Other') {
-                            const platformElement = socialItem.querySelector('.social-platform');
-                            platformElement.innerHTML = `<input type="text" class="platform-input" placeholder="Platform Name" value="Custom">`;
-                            
-                            // Setup input
-                            const inputElement = platformElement.querySelector('.platform-input');
-                            inputElement.addEventListener('input', () => this.markDirty());
-                            inputElement.addEventListener('blur', () => this.saveStateToHistory());
-                            
-                            // Focus the input
-                            inputElement.focus();
-                            inputElement.select();
-                        } else {
-                            // Update the default URL placeholder based on platform
-                            const defaultUrls = {
-                                'Facebook': 'https://facebook.com/',
-                                'Twitter': 'https://twitter.com/',
-                                'Instagram': 'https://instagram.com/',
-                                'LinkedIn': 'https://linkedin.com/in/',
-                                'YouTube': 'https://youtube.com/c/',
-                                'TikTok': 'https://tiktok.com/@',
-                                'Pinterest': 'https://pinterest.com/'
-                            };
-                            
-                            linkElement.textContent = defaultUrls[platform] || 'https://';
-                        }
-                        
-                        this.markDirty();
-                        this.saveStateToHistory();
-                    });
-                    
-                    // Focus the link element
-                    linkElement.focus();
-                    document.execCommand('selectAll', false, null);
-                    
-                    // Save state to history
-                    this.saveStateToHistory();
-                    this.markDirty();
-                }
-            } catch (error) {
-                this.handleError(error, 'add social item');
-            }
-        }
-        
-        /**
          * Setup undo/redo functionality
          */
         setupUndoRedo() {
             try {
+                console.log('Setting up undo/redo functionality...');
+                
                 // Get undo/redo buttons
                 if (this.elements.undoButton) {
                     this.elements.undoButton.addEventListener('click', () => this.undo());
@@ -789,44 +967,25 @@
                 
                 // Update undo/redo button states
                 this.updateUndoRedoButtons();
+                
+                console.log('Undo/redo functionality setup complete');
             } catch (error) {
                 this.handleError(error, 'undo/redo setup');
             }
         }
         
         /**
-         * Update undo/redo button states
-         */
-        updateUndoRedoButtons() {
-            try {
-                if (this.elements.undoButton) {
-                    if (this.state.undoStack.length > 0) {
-                        this.elements.undoButton.classList.remove('disabled');
-                    } else {
-                        this.elements.undoButton.classList.add('disabled');
-                    }
-                }
-                
-                if (this.elements.redoButton) {
-                    if (this.state.redoStack.length > 0) {
-                        this.elements.redoButton.classList.remove('disabled');
-                    } else {
-                        this.elements.redoButton.classList.add('disabled');
-                    }
-                }
-            } catch (error) {
-                this.handleError(error, 'update undo/redo buttons');
-            }
-        }
-        
-        /**
-         * Setup general event listeners
+         * Setup event listeners
          */
         setupEventListeners() {
             try {
+                console.log('Setting up event listeners...');
+                
                 // Save button
                 if (this.elements.saveButton) {
-                    this.elements.saveButton.addEventListener('click', () => this.saveMediaKit());
+                    this.elements.saveButton.addEventListener('click', () => {
+                        this.emit('save-requested', this.getBuilderState());
+                    });
                 }
                 
                 // Window unload warning
@@ -860,6 +1019,8 @@
                         this.handleError(error, 'document click');
                     }
                 });
+                
+                console.log('Event listeners setup complete');
             } catch (error) {
                 this.handleError(error, 'setup event listeners');
             }
@@ -870,6 +1031,8 @@
          */
         setupAutoSave() {
             try {
+                console.log('Setting up auto-save...');
+                
                 // Clear any existing timer
                 if (this.autoSaveTimer) {
                     clearInterval(this.autoSaveTimer);
@@ -878,72 +1041,16 @@
                 // Auto-save every 30 seconds if changes exist
                 this.autoSaveTimer = setInterval(() => {
                     if (this.state.isDirty) {
-                        this.emit('auto-save-triggered', { timestamp: new Date() });
+                        this.emit('auto-save-triggered', {
+                            timestamp: new Date(),
+                            data: this.getBuilderState()
+                        });
                     }
                 }, this.config.autoSaveInterval);
+                
+                console.log(`Auto-save setup complete with interval: ${this.config.autoSaveInterval}ms`);
             } catch (error) {
                 this.handleError(error, 'auto-save setup');
-            }
-        }
-        
-        /**
-         * Event system: Add event listener
-         * @param {string} event - Event name
-         * @param {Function} handler - Event handler
-         */
-        on(event, handler) {
-            try {
-                if (!this.eventHandlers[event]) {
-                    this.eventHandlers[event] = [];
-                }
-                this.eventHandlers[event].push(handler);
-                
-                return () => this.off(event, handler); // Return unsubscribe function
-            } catch (error) {
-                this.handleError(error, 'event subscription');
-            }
-        }
-        
-        /**
-         * Event system: Remove event listener
-         * @param {string} event - Event name
-         * @param {Function} handler - Event handler
-         */
-        off(event, handler) {
-            try {
-                if (!this.eventHandlers[event]) return;
-                this.eventHandlers[event] = this.eventHandlers[event].filter(h => h !== handler);
-            } catch (error) {
-                this.handleError(error, 'event unsubscription');
-            }
-        }
-        
-        /**
-         * Event system: Emit event
-         * @param {string} event - Event name
-         * @param {*} data - Event data
-         */
-        emit(event, data) {
-            try {
-                if (!this.eventHandlers[event]) return;
-                
-                // Include event name and timestamp in data
-                const eventData = {
-                    ...data,
-                    _event: event,
-                    _timestamp: new Date()
-                };
-                
-                // Call each handler with data
-                this.eventHandlers[event].forEach(handler => {
-                    try {
-                        handler(eventData);
-                    } catch (error) {
-                        this.handleError(error, `event handler for ${event}`);
-                    }
-                });
-            } catch (error) {
-                this.handleError(error, 'event emission');
             }
         }
         
@@ -1452,6 +1559,165 @@
         }
         
         /**
+         * Add a new topic item
+         * @param {HTMLElement} element - Topics component
+         */
+        addTopicItem(element) {
+            try {
+                const topicsContainer = element.querySelector('.topics-container');
+                const addButton = element.querySelector('.add-topic');
+                
+                if (topicsContainer && addButton) {
+                    // Create new topic item
+                    const topicItem = document.createElement('div');
+                    topicItem.className = 'topic-item';
+                    topicItem.innerHTML = `<div class="topic-text" contenteditable="true">New Topic</div>`;
+                    
+                    // Insert before add button
+                    topicsContainer.insertBefore(topicItem, addButton);
+                    
+                    // Setup contenteditable
+                    const textElement = topicItem.querySelector('.topic-text');
+                    textElement.addEventListener('input', () => this.markDirty());
+                    textElement.addEventListener('blur', () => this.saveStateToHistory());
+                    
+                    // Select the new topic text
+                    textElement.focus();
+                    document.execCommand('selectAll', false, null);
+                    
+                    // Save state to history
+                    this.saveStateToHistory();
+                    this.markDirty();
+                }
+            } catch (error) {
+                this.handleError(error, 'add topic item');
+            }
+        }
+        
+        /**
+         * Add a new question item
+         * @param {HTMLElement} element - Questions component
+         */
+        addQuestionItem(element) {
+            try {
+                const questionsContainer = element.querySelector('.questions-container');
+                const addButton = element.querySelector('.add-question');
+                
+                if (questionsContainer && addButton) {
+                    // Create new question item
+                    const questionItem = document.createElement('div');
+                    questionItem.className = 'question-item';
+                    questionItem.innerHTML = `<div class="question-text" contenteditable="true">New Question</div>`;
+                    
+                    // Insert before add button
+                    questionsContainer.insertBefore(questionItem, addButton);
+                    
+                    // Setup contenteditable
+                    const textElement = questionItem.querySelector('.question-text');
+                    textElement.addEventListener('input', () => this.markDirty());
+                    textElement.addEventListener('blur', () => this.saveStateToHistory());
+                    
+                    // Select the new question text
+                    textElement.focus();
+                    document.execCommand('selectAll', false, null);
+                    
+                    // Save state to history
+                    this.saveStateToHistory();
+                    this.markDirty();
+                }
+            } catch (error) {
+                this.handleError(error, 'add question item');
+            }
+        }
+        
+        /**
+         * Add a new social media item
+         * @param {HTMLElement} element - Social component
+         */
+        addSocialItem(element) {
+            try {
+                const socialContainer = element.querySelector('.social-container');
+                const addButton = element.querySelector('.add-social');
+                
+                if (socialContainer && addButton) {
+                    // Create new social item
+                    const socialItem = document.createElement('div');
+                    socialItem.className = 'social-item';
+                    socialItem.innerHTML = `
+                        <div class="social-platform">
+                            <select class="platform-select">
+                                <option value="Facebook">Facebook</option>
+                                <option value="Twitter">Twitter</option>
+                                <option value="Instagram">Instagram</option>
+                                <option value="LinkedIn">LinkedIn</option>
+                                <option value="YouTube">YouTube</option>
+                                <option value="TikTok">TikTok</option>
+                                <option value="Pinterest">Pinterest</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="social-link" contenteditable="true">https://</div>
+                    `;
+                    
+                    // Insert before add button
+                    socialContainer.insertBefore(socialItem, addButton);
+                    
+                    // Setup contenteditable
+                    const linkElement = socialItem.querySelector('.social-link');
+                    linkElement.addEventListener('input', () => this.markDirty());
+                    linkElement.addEventListener('blur', () => this.saveStateToHistory());
+                    
+                    // Setup select
+                    const selectElement = socialItem.querySelector('.platform-select');
+                    selectElement.addEventListener('change', () => {
+                        const platform = selectElement.value;
+                        
+                        // If "Other" is selected, replace with a text input
+                        if (platform === 'Other') {
+                            const platformElement = socialItem.querySelector('.social-platform');
+                            platformElement.innerHTML = `<input type="text" class="platform-input" placeholder="Platform Name" value="Custom">`;
+                            
+                            // Setup input
+                            const inputElement = platformElement.querySelector('.platform-input');
+                            inputElement.addEventListener('input', () => this.markDirty());
+                            inputElement.addEventListener('blur', () => this.saveStateToHistory());
+                            
+                            // Focus the input
+                            inputElement.focus();
+                            inputElement.select();
+                        } else {
+                            // Update the default URL placeholder based on platform
+                            const defaultUrls = {
+                                'Facebook': 'https://facebook.com/',
+                                'Twitter': 'https://twitter.com/',
+                                'Instagram': 'https://instagram.com/',
+                                'LinkedIn': 'https://linkedin.com/in/',
+                                'YouTube': 'https://youtube.com/c/',
+                                'TikTok': 'https://tiktok.com/@',
+                                'Pinterest': 'https://pinterest.com/'
+                            };
+                            
+                            linkElement.textContent = defaultUrls[platform] || 'https://';
+                        }
+                        
+                        this.markDirty();
+                        this.saveStateToHistory();
+                    });
+                    
+                    // Focus the link element
+                    linkElement.focus();
+                    document.execCommand('selectAll', false, null);
+                    
+                    // Save state to history
+                    this.saveStateToHistory();
+                    this.markDirty();
+                }
+            } catch (error) {
+                this.handleError(error, 'add social item');
+            }
+        }
+        
+        /**
          * Move element up
          * @param {HTMLElement} element - Element to move
          */
@@ -1586,6 +1852,31 @@
                 });
             } catch (error) {
                 this.handleError(error, 'save state to history');
+            }
+        }
+        
+        /**
+         * Update undo/redo button states
+         */
+        updateUndoRedoButtons() {
+            try {
+                if (this.elements.undoButton) {
+                    if (this.state.undoStack.length > 0) {
+                        this.elements.undoButton.classList.remove('disabled');
+                    } else {
+                        this.elements.undoButton.classList.add('disabled');
+                    }
+                }
+                
+                if (this.elements.redoButton) {
+                    if (this.state.redoStack.length > 0) {
+                        this.elements.redoButton.classList.remove('disabled');
+                    } else {
+                        this.elements.redoButton.classList.add('disabled');
+                    }
+                }
+            } catch (error) {
+                this.handleError(error, 'update undo/redo buttons');
             }
         }
         
@@ -1964,7 +2255,7 @@
         populateBuilder(state) {
             try {
                 if (!state) {
-                    this.log('No state provided to populate builder', 'warn');
+                    console.warn('No state provided to populate builder');
                     return;
                 }
                 
@@ -2027,8 +2318,8 @@
                 });
                 
                 // Re-initialize event listeners
+                this.setupElementSelection();
                 this.setupDragAndDrop();
-                this.setupSectionEventListeners();
             } catch (error) {
                 this.handleError(error, 'populate from sections');
             }
@@ -2104,190 +2395,6 @@
         }
         
         /**
-         * Setup section control event listeners
-         * @param {HTMLElement} section - Section element
-         */
-        setupSectionControlListeners(section) {
-            try {
-                const moveUpBtn = section.querySelector('.move-up-btn');
-                const moveDownBtn = section.querySelector('.move-down-btn');
-                const duplicateBtn = section.querySelector('.duplicate-btn');
-                const deleteBtn = section.querySelector('.delete-btn');
-                
-                if (moveUpBtn) {
-                    moveUpBtn.addEventListener('click', e => {
-                        e.stopPropagation();
-                        this.moveSectionUp(section);
-                    });
-                }
-                
-                if (moveDownBtn) {
-                    moveDownBtn.addEventListener('click', e => {
-                        e.stopPropagation();
-                        this.moveSectionDown(section);
-                    });
-                }
-                
-                if (duplicateBtn) {
-                    duplicateBtn.addEventListener('click', e => {
-                        e.stopPropagation();
-                        this.duplicateSection(section);
-                    });
-                }
-                
-                if (deleteBtn) {
-                    deleteBtn.addEventListener('click', e => {
-                        e.stopPropagation();
-                        this.deleteSection(section);
-                    });
-                }
-            } catch (error) {
-                this.handleError(error, 'setup section control listeners');
-            }
-        }
-        
-        /**
-         * Move section up
-         * @param {HTMLElement} section - Section to move
-         */
-        moveSectionUp(section) {
-            try {
-                const previousSection = section.previousElementSibling;
-                if (previousSection && previousSection.classList.contains('media-kit-section')) {
-                    section.parentNode.insertBefore(section, previousSection);
-                    this.saveStateToHistory();
-                    this.markDirty();
-                    
-                    this.emit('section-moved', {
-                        section: section,
-                        direction: 'up',
-                        previous: previousSection
-                    });
-                }
-            } catch (error) {
-                this.handleError(error, 'move section up');
-            }
-        }
-        
-        /**
-         * Move section down
-         * @param {HTMLElement} section - Section to move
-         */
-        moveSectionDown(section) {
-            try {
-                const nextSection = section.nextElementSibling;
-                if (nextSection && nextSection.classList.contains('media-kit-section')) {
-                    section.parentNode.insertBefore(nextSection, section);
-                    this.saveStateToHistory();
-                    this.markDirty();
-                    
-                    this.emit('section-moved', {
-                        section: section,
-                        direction: 'down',
-                        next: nextSection
-                    });
-                }
-            } catch (error) {
-                this.handleError(error, 'move section down');
-            }
-        }
-        
-        /**
-         * Duplicate section
-         * @param {HTMLElement} section - Section to duplicate
-         */
-        duplicateSection(section) {
-            try {
-                // Create a deep clone
-                const clone = section.cloneNode(true);
-                
-                // Generate new section ID
-                const newSectionId = 'section-' + Date.now();
-                clone.setAttribute('data-section-id', newSectionId);
-                
-                // Generate new component IDs
-                const components = clone.querySelectorAll('.editable-element');
-                components.forEach(component => {
-                    const newComponentId = 'component-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-                    component.setAttribute('data-component-id', newComponentId);
-                });
-                
-                // Insert after original section
-                section.parentNode.insertBefore(clone, section.nextSibling);
-                
-                // Setup event listeners
-                this.setupSectionEventListeners();
-                this.setupSectionControlListeners(clone);
-                
-                // Setup component event listeners
-                components.forEach(component => {
-                    this.setupElementEventListeners(component);
-                });
-                
-                // Save state and mark dirty
-                this.saveStateToHistory();
-                this.markDirty();
-                
-                this.emit('section-duplicated', {
-                    original: section,
-                    duplicate: clone,
-                    sectionId: newSectionId
-                });
-                
-                return clone;
-            } catch (error) {
-                this.handleError(error, 'duplicate section');
-                return null;
-            }
-        }
-        
-        /**
-         * Delete section
-         * @param {HTMLElement} section - Section to delete
-         */
-        deleteSection(section) {
-            try {
-                // Count total sections
-                const totalSections = this.elements.preview.querySelectorAll('.media-kit-section').length;
-                
-                // Prevent deleting the last section
-                if (totalSections <= 1) {
-                    alert('Cannot delete the last section. At least one section is required.');
-                    return;
-                }
-                
-                // Ask for confirmation
-                if (confirm('Are you sure you want to delete this section and all its contents?')) {
-                    // Deselect if this section is selected
-                    if (this.state.selectedSection === section) {
-                        this.state.selectedSection = null;
-                        this.clearDesignPanel();
-                    }
-                    
-                    // Deselect any selected element within this section
-                    if (this.state.selectedElement && section.contains(this.state.selectedElement)) {
-                        this.selectElement(null);
-                    }
-                    
-                    // Store section data for event
-                    const sectionData = {
-                        id: section.getAttribute('data-section-id'),
-                        type: section.getAttribute('data-section-type'),
-                        layout: section.getAttribute('data-section-layout')
-                    };
-                    
-                    section.remove();
-                    this.saveStateToHistory();
-                    this.markDirty();
-                    
-                    this.emit('section-deleted', sectionData);
-                }
-            } catch (error) {
-                this.handleError(error, 'delete section');
-            }
-        }
-        
-        /**
          * Generate columns for layout
          * @param {string} layout - Layout type
          * @returns {string} Columns HTML
@@ -2338,428 +2445,75 @@
             } catch (error) {
                 this.handleError(error, 'generate columns for layout');
                 
-                // Return fallback single column
+                // Return default single column as fallback
                 return `
                     <div class="section-column" data-column="full">
-                        <div class="drop-zone empty"></div>
+                        <div class="drop-zone empty" data-zone="fallback-${Date.now()}"></div>
                     </div>
                 `;
             }
         }
         
         /**
-         * Setup section event listeners
-         */
-        setupSectionEventListeners() {
-            try {
-                const sections = this.elements.preview.querySelectorAll('.media-kit-section');
-                
-                sections.forEach(section => {
-                    // Add hover effect
-                    section.addEventListener('mouseenter', function() {
-                        this.classList.add('section-hover');
-                    });
-                    
-                    section.addEventListener('mouseleave', function() {
-                        this.classList.remove('section-hover');
-                    });
-                    
-                    // Section selection
-                    section.addEventListener('click', e => {
-                        try {
-                            // Don't select section if clicking on a component or controls
-                            if (e.target.closest('.editable-element') || 
-                                e.target.closest('.section-controls') ||
-                                e.target.closest('.element-controls')) {
-                                return;
-                            }
-                            
-                            e.stopPropagation();
-                            
-                            // Deselect any selected components first
-                            this.selectElement(null);
-                            
-                            // Select this section
-                            this.selectSection(section);
-                        } catch (error) {
-                            this.handleError(error, 'section click');
-                        }
-                    });
-                });
-            } catch (error) {
-                this.handleError(error, 'setup section event listeners');
-            }
-        }
-        
-        /**
-         * Select section
-         * @param {HTMLElement} section - Section to select
-         */
-        selectSection(section) {
-            try {
-                // Remove previous selection from all sections
-                this.elements.preview.querySelectorAll('.media-kit-section').forEach(s => {
-                    s.classList.remove('selected');
-                });
-                
-                // Select new section
-                section.classList.add('selected');
-                this.state.selectedSection = section;
-                
-                // Update UI to show section options
-                this.updateSectionDesignPanel(section);
-                
-                this.emit('section-selected', { section });
-            } catch (error) {
-                this.handleError(error, 'select section');
-            }
-        }
-        
-        /**
-         * Update section design panel
-         * @param {HTMLElement} section - Selected section
-         */
-        updateSectionDesignPanel(section) {
-            try {
-                if (!this.elements.designPanel) return;
-                
-                const sectionType = section.getAttribute('data-section-type');
-                const sectionLayout = section.getAttribute('data-section-layout');
-                const sectionId = section.getAttribute('data-section-id');
-                
-                this.elements.designPanel.innerHTML = `
-                    <div class="section-design-panel">
-                        <div class="panel-header">Section Settings</div>
-                        
-                        <div class="form-group">
-                            <label>Layout</label>
-                            <div class="layout-options">
-                                <div class="layout-option ${sectionLayout === 'full-width' ? 'active' : ''}" data-layout="full-width">
-                                    <div class="layout-preview full-width"></div>
-                                    <div class="layout-name">Full Width</div>
-                                </div>
-                                <div class="layout-option ${sectionLayout === 'two-column' ? 'active' : ''}" data-layout="two-column">
-                                    <div class="layout-preview two-column"></div>
-                                    <div class="layout-name">Two Column</div>
-                                </div>
-                                <div class="layout-option ${sectionLayout === 'three-column' ? 'active' : ''}" data-layout="three-column">
-                                    <div class="layout-preview three-column"></div>
-                                    <div class="layout-name">Three Column</div>
-                                </div>
-                                <div class="layout-option ${sectionLayout === 'main-sidebar' ? 'active' : ''}" data-layout="main-sidebar">
-                                    <div class="layout-preview sidebar"></div>
-                                    <div class="layout-name">Main + Sidebar</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Background Color</label>
-                            <div class="color-control">
-                                <input type="color" class="control-input" id="section-bg-color" value="${section.style.backgroundColor || '#ffffff'}">
-                                <input type="text" class="color-text" value="${section.style.backgroundColor || '#ffffff'}" data-for="section-bg-color">
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Section Spacing</label>
-                            <select class="form-input" id="section-spacing">
-                                <option value="compact" ${section.style.paddingTop === '24px' ? 'selected' : ''}>Compact</option>
-                                <option value="standard" ${section.style.paddingTop === '48px' || !section.style.paddingTop ? 'selected' : ''}>Standard</option>
-                                <option value="spacious" ${section.style.paddingTop === '72px' ? 'selected' : ''}>Spacious</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Section Type</label>
-                            <select class="form-input" id="section-type">
-                                <option value="hero" ${sectionType === 'hero' ? 'selected' : ''}>Hero</option>
-                                <option value="content" ${sectionType === 'content' ? 'selected' : ''}>Content</option>
-                                <option value="features" ${sectionType === 'features' ? 'selected' : ''}>Features</option>
-                                <option value="media" ${sectionType === 'media' ? 'selected' : ''}>Media</option>
-                                <option value="contact" ${sectionType === 'contact' ? 'selected' : ''}>Contact</option>
-                            </select>
-                        </div>
-                    </div>
-                `;
-                
-                // Setup layout option clicks
-                const layoutOptions = this.elements.designPanel.querySelectorAll('.layout-option');
-                layoutOptions.forEach(option => {
-                    option.addEventListener('click', () => {
-                        try {
-                            const newLayout = option.getAttribute('data-layout');
-                            
-                            // Change section layout
-                            this.changeSectionLayout(sectionId, newLayout);
-                            
-                            // Update active state
-                            layoutOptions.forEach(opt => opt.classList.remove('active'));
-                            option.classList.add('active');
-                        } catch (error) {
-                            this.handleError(error, 'layout option click');
-                        }
-                    });
-                });
-                
-                // Setup background color
-                const bgColorInput = this.elements.designPanel.querySelector('#section-bg-color');
-                const bgColorText = this.elements.designPanel.querySelector('.color-text[data-for="section-bg-color"]');
-                
-                if (bgColorInput) {
-                    bgColorInput.addEventListener('input', () => {
-                        try {
-                            section.style.backgroundColor = bgColorInput.value;
-                            if (bgColorText) bgColorText.value = bgColorInput.value;
-                            this.markDirty();
-                        } catch (error) {
-                            this.handleError(error, 'background color input');
-                        }
-                    });
-                    
-                    bgColorInput.addEventListener('change', () => {
-                        this.saveStateToHistory();
-                    });
-                }
-                
-                if (bgColorText) {
-                    bgColorText.addEventListener('input', () => {
-                        try {
-                            // Validate hex color
-                            if (/^#[0-9A-F]{6}$/i.test(bgColorText.value)) {
-                                section.style.backgroundColor = bgColorText.value;
-                                bgColorInput.value = bgColorText.value;
-                                this.markDirty();
-                            }
-                        } catch (error) {
-                            this.handleError(error, 'background color text input');
-                        }
-                    });
-                    
-                    bgColorText.addEventListener('blur', () => {
-                        bgColorText.value = bgColorInput.value;
-                        this.saveStateToHistory();
-                    });
-                }
-                
-                // Setup spacing
-                const spacingSelect = this.elements.designPanel.querySelector('#section-spacing');
-                if (spacingSelect) {
-                    spacingSelect.addEventListener('change', () => {
-                        try {
-                            const spacing = spacingSelect.value;
-                            let paddingTop, paddingBottom;
-                            
-                            switch(spacing) {
-                                case 'compact':
-                                    paddingTop = '24px';
-                                    paddingBottom = '24px';
-                                    break;
-                                case 'spacious':
-                                    paddingTop = '72px';
-                                    paddingBottom = '72px';
-                                    break;
-                                default:
-                                    paddingTop = '48px';
-                                    paddingBottom = '48px';
-                            }
-                            
-                            section.style.paddingTop = paddingTop;
-                            section.style.paddingBottom = paddingBottom;
-                            
-                            this.markDirty();
-                            this.saveStateToHistory();
-                        } catch (error) {
-                            this.handleError(error, 'spacing select change');
-                        }
-                    });
-                }
-                
-                // Setup section type
-                const typeSelect = this.elements.designPanel.querySelector('#section-type');
-                if (typeSelect) {
-                    typeSelect.addEventListener('change', () => {
-                        try {
-                            const newType = typeSelect.value;
-                            section.setAttribute('data-section-type', newType);
-                            
-                            this.markDirty();
-                            this.saveStateToHistory();
-                        } catch (error) {
-                            this.handleError(error, 'section type change');
-                        }
-                    });
-                }
-                
-                // Switch to design tab
-                const designTab = document.querySelector('.sidebar-tab[data-tab="design"]');
-                if (designTab) {
-                    designTab.click();
-                }
-            } catch (error) {
-                this.handleError(error, 'update section design panel');
-            }
-        }
-        
-        /**
-         * Change section layout
-         * @param {string} sectionId - Section ID
-         * @param {string} newLayout - New layout
-         */
-        changeSectionLayout(sectionId, newLayout) {
-            try {
-                const section = this.elements.preview.querySelector(`[data-section-id="${sectionId}"]`);
-                if (!section) {
-                    throw new Error(`Section not found: ${sectionId}`);
-                }
-                
-                const content = section.querySelector('.section-content');
-                if (!content) {
-                    throw new Error('Section content not found');
-                }
-                
-                const oldLayout = section.getAttribute('data-section-layout');
-                
-                // Collect all components from all columns
-                const allComponents = [];
-                content.querySelectorAll('.editable-element').forEach(comp => {
-                    allComponents.push(comp.cloneNode(true));
-                });
-                
-                // Update layout attributes
-                section.setAttribute('data-section-layout', newLayout);
-                content.className = `section-content layout-${newLayout}`;
-                
-                // Regenerate columns
-                content.innerHTML = this.generateColumnsForLayout(newLayout);
-                
-                // Redistribute components
-                this.redistributeComponents(section, allComponents);
-                
-                // Re-initialize drop zones and event listeners
-                this.setupDragAndDrop();
-                
-                // Re-setup component event listeners
-                section.querySelectorAll('.editable-element').forEach(comp => {
-                    this.setupElementEventListeners(comp);
-                });
-                
-                // Save state and mark dirty
-                this.saveStateToHistory();
-                this.markDirty();
-                
-                this.emit('section-layout-changed', {
-                    sectionId: sectionId,
-                    oldLayout: oldLayout,
-                    newLayout: newLayout
-                });
-            } catch (error) {
-                this.handleError(error, 'change section layout');
-            }
-        }
-        
-        /**
-         * Redistribute components between columns
+         * Setup section control event listeners
          * @param {HTMLElement} section - Section element
-         * @param {Array} components - Component elements
          */
-        redistributeComponents(section, components) {
+        setupSectionControlListeners(section) {
             try {
-                const columns = section.querySelectorAll('.section-column');
-                const numColumns = columns.length;
+                const moveUpBtn = section.querySelector('.move-up-btn');
+                const moveDownBtn = section.querySelector('.move-down-btn');
+                const duplicateBtn = section.querySelector('.duplicate-btn');
+                const deleteBtn = section.querySelector('.delete-btn');
                 
-                if (numColumns === 0 || components.length === 0) {
-                    this.log('No columns or components to redistribute');
-                    return;
-                }
-                
-                // Distribute components evenly across columns
-                const componentsPerColumn = Math.ceil(components.length / numColumns);
-                
-                components.forEach((component, index) => {
-                    const columnIndex = Math.floor(index / componentsPerColumn);
-                    
-                    if (columnIndex < columns.length) {
-                        const dropZone = columns[columnIndex].querySelector('.drop-zone');
-                        if (dropZone) {
-                            dropZone.appendChild(component);
-                            dropZone.classList.remove('empty');
-                        }
-                    }
-                });
-            } catch (error) {
-                this.handleError(error, 'redistribute components');
-            }
-        }
-        
-        /**
-         * Populate builder from components
-         * @param {Object} components - Component data
-         */
-        populateFromComponents(components) {
-            try {
-                // Create a default section
-                const sectionId = 'section-' + Date.now();
-                const sectionEl = document.createElement('div');
-                sectionEl.className = 'media-kit-section';
-                sectionEl.setAttribute('data-section-id', sectionId);
-                sectionEl.setAttribute('data-section-type', 'content');
-                sectionEl.setAttribute('data-section-layout', 'full-width');
-                
-                // Add section controls
-                const controls = document.createElement('div');
-                controls.className = 'section-controls';
-                controls.innerHTML = `
-                    <button class="section-control-btn move-up-btn" title="Move Section Up">↑</button>
-                    <button class="section-control-btn move-down-btn" title="Move Section Down">↓</button>
-                    <button class="section-control-btn duplicate-btn" title="Duplicate Section">⧉</button>
-                    <button class="section-control-btn delete-btn" title="Delete Section">✕</button>
-                `;
-                
-                // Create section content
-                const content = document.createElement('div');
-                content.className = 'section-content layout-full-width';
-                content.innerHTML = this.generateColumnsForLayout('full-width');
-                
-                sectionEl.appendChild(controls);
-                sectionEl.appendChild(content);
-                
-                // Add section to preview
-                this.elements.preview.appendChild(sectionEl);
-                
-                // Add components to section
-                const dropZone = sectionEl.querySelector('.drop-zone');
-                
-                if (components && dropZone) {
-                    Object.values(components).forEach(componentData => {
-                        const componentEl = this.createComponentFromData(componentData);
-                        if (componentEl) {
-                            dropZone.appendChild(componentEl);
-                            dropZone.classList.remove('empty');
-                        }
+                if (moveUpBtn) {
+                    moveUpBtn.addEventListener('click', e => {
+                        e.stopPropagation();
+                        this.moveSectionUp(section);
                     });
                 }
                 
-                // Setup event listeners
-                this.setupSectionControlListeners(sectionEl);
-                this.setupDragAndDrop();
-                this.setupSectionEventListeners();
+                if (moveDownBtn) {
+                    moveDownBtn.addEventListener('click', e => {
+                        e.stopPropagation();
+                        this.moveSectionDown(section);
+                    });
+                }
+                
+                if (duplicateBtn) {
+                    duplicateBtn.addEventListener('click', e => {
+                        e.stopPropagation();
+                        this.duplicateSection(section);
+                    });
+                }
+                
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', e => {
+                        e.stopPropagation();
+                        this.deleteSection(section);
+                    });
+                }
             } catch (error) {
-                this.handleError(error, 'populate from components');
+                this.handleError(error, 'setup section control listeners');
             }
         }
         
         /**
          * Create component from data
-         * @param {Object} data - Component data
+         * @param {Object} componentData - Component data
          * @returns {HTMLElement} Component element
          */
-        createComponentFromData(data) {
+        createComponentFromData(componentData) {
             try {
+                if (!componentData || !componentData.type) {
+                    console.warn('Invalid component data:', componentData);
+                    return null;
+                }
+                
                 // Get component template
-                const template = this.getComponentTemplate(data.type);
+                const template = this.getComponentTemplate(componentData.type);
                 if (!template) {
-                    throw new Error(`Component template not found: ${data.type}`);
+                    console.warn(`Component template not found for type: ${componentData.type}`);
+                    return null;
                 }
                 
                 // Create component element
@@ -2768,17 +2522,36 @@
                 const component = tempDiv.firstElementChild;
                 
                 if (!component) {
-                    throw new Error('Failed to create component element');
+                    console.warn('Failed to create component element from template');
+                    return null;
                 }
                 
                 // Set component ID
-                component.setAttribute('data-component-id', data.id);
-                
-                // Populate content
-                this.populateComponentContent(component, data);
+                component.setAttribute('data-component-id', componentData.id);
                 
                 // Apply styles
-                this.applyComponentStyles(component, data.styles);
+                if (componentData.styles) {
+                    Object.entries(componentData.styles).forEach(([prop, value]) => {
+                        // Apply style properties
+                        if (prop && value && !prop.includes('data-')) {
+                            component.style[prop] = value;
+                        }
+                        
+                        // Apply data attributes
+                        if (prop === 'columns') {
+                            component.setAttribute('data-columns', value);
+                        } else if (prop === 'style') {
+                            component.setAttribute('data-style', value);
+                        } else if (prop === 'size') {
+                            component.setAttribute('data-size', value);
+                        }
+                    });
+                }
+                
+                // Apply content
+                if (componentData.content) {
+                    this.applyComponentContent(component, componentData.type, componentData.content);
+                }
                 
                 // Setup event listeners
                 this.setupElementEventListeners(component);
@@ -2791,291 +2564,190 @@
         }
         
         /**
-         * Populate component content
+         * Apply component content
          * @param {HTMLElement} component - Component element
-         * @param {Object} data - Component data
+         * @param {string} type - Component type
+         * @param {Object} content - Component content
          */
-        populateComponentContent(component, data) {
+        applyComponentContent(component, type, content) {
             try {
-                const type = data.type;
-                const content = data.content || {};
-                
-                // Populate biography content
-                if (type === 'biography' && content.text) {
-                    const bioContent = component.querySelector('.editable-content');
-                    if (bioContent) {
-                        bioContent.innerHTML = content.text;
-                    }
-                }
-                
-                // Populate topics content
-                else if (type === 'topics' && content.topics) {
-                    const topicsContainer = component.querySelector('.topics-container');
-                    if (topicsContainer) {
-                        // Clear existing topics except the add button
-                        const addTopic = topicsContainer.querySelector('.add-topic');
-                        topicsContainer.innerHTML = '';
-                        
-                        // Add topics
-                        content.topics.forEach(topic => {
-                            const topicItem = document.createElement('div');
-                            topicItem.className = 'topic-item';
-                            topicItem.innerHTML = `<div class="topic-text" contenteditable="true">${topic}</div>`;
-                            topicsContainer.appendChild(topicItem);
-                        });
-                        
-                        // Add the add button back
-                        if (addTopic) {
-                            topicsContainer.appendChild(addTopic);
-                        } else {
-                            // Create new add button if it doesn't exist
-                            const newAddTopic = document.createElement('div');
-                            newAddTopic.className = 'add-topic';
-                            newAddTopic.textContent = '+ Add Topic';
-                            newAddTopic.addEventListener('click', () => this.addTopicItem(component));
-                            topicsContainer.appendChild(newAddTopic);
+                switch (type) {
+                    case 'biography':
+                        if (content.text) {
+                            const bioContent = component.querySelector('.editable-content');
+                            if (bioContent) {
+                                bioContent.innerHTML = content.text;
+                            }
                         }
-                    }
-                }
-                
-                // Populate questions content
-                else if (type === 'questions' && content.questions) {
-                    const questionsContainer = component.querySelector('.questions-container');
-                    if (questionsContainer) {
-                        // Clear existing questions except the add button
-                        const addQuestion = questionsContainer.querySelector('.add-question');
-                        questionsContainer.innerHTML = '';
-                        
-                        // Add questions
-                        content.questions.forEach(question => {
-                            const questionItem = document.createElement('div');
-                            questionItem.className = 'question-item';
-                            questionItem.innerHTML = `<div class="question-text" contenteditable="true">${question}</div>`;
-                            questionsContainer.appendChild(questionItem);
-                        });
-                        
-                        // Add the add button back
-                        if (addQuestion) {
-                            questionsContainer.appendChild(addQuestion);
-                        } else {
-                            // Create new add button if it doesn't exist
-                            const newAddQuestion = document.createElement('div');
-                            newAddQuestion.className = 'add-question';
-                            newAddQuestion.textContent = '+ Add Question';
-                            newAddQuestion.addEventListener('click', () => this.addQuestionItem(component));
-                            questionsContainer.appendChild(newAddQuestion);
+                        break;
+                    
+                    case 'topics':
+                        if (content.topics && Array.isArray(content.topics)) {
+                            const topicsContainer = component.querySelector('.topics-container');
+                            const addButton = component.querySelector('.add-topic');
+                            
+                            if (topicsContainer && addButton) {
+                                // Remove existing topics
+                                topicsContainer.querySelectorAll('.topic-item').forEach(item => item.remove());
+                                
+                                // Add topics from content
+                                content.topics.forEach(topic => {
+                                    const topicItem = document.createElement('div');
+                                    topicItem.className = 'topic-item';
+                                    topicItem.innerHTML = `<div class="topic-text" contenteditable="true">${topic}</div>`;
+                                    
+                                    // Insert before add button
+                                    topicsContainer.insertBefore(topicItem, addButton);
+                                    
+                                    // Setup contenteditable
+                                    const textElement = topicItem.querySelector('.topic-text');
+                                    textElement.addEventListener('input', () => this.markDirty());
+                                    textElement.addEventListener('blur', () => this.saveStateToHistory());
+                                });
+                            }
                         }
-                    }
-                }
-                
-                // Populate social content
-                else if (type === 'social' && content.platforms) {
-                    const socialContainer = component.querySelector('.social-container');
-                    if (socialContainer) {
-                        // Clear existing platforms except the add button
-                        const addSocial = socialContainer.querySelector('.add-social');
-                        socialContainer.innerHTML = '';
-                        
-                        // Add platforms
-                        content.platforms.forEach(platform => {
-                            const socialItem = document.createElement('div');
-                            socialItem.className = 'social-item';
-                            socialItem.innerHTML = `
-                                <div class="social-platform">${platform.platform}</div>
-                                <div class="social-link" contenteditable="true">${platform.link}</div>
-                            `;
-                            socialContainer.appendChild(socialItem);
-                        });
-                        
-                        // Add the add button back
-                        if (addSocial) {
-                            socialContainer.appendChild(addSocial);
-                        } else {
-                            // Create new add button if it doesn't exist
-                            const newAddSocial = document.createElement('div');
-                            newAddSocial.className = 'add-social';
-                            newAddSocial.textContent = '+ Add Platform';
-                            newAddSocial.addEventListener('click', () => this.addSocialItem(component));
-                            socialContainer.appendChild(newAddSocial);
+                        break;
+                    
+                    case 'questions':
+                        if (content.questions && Array.isArray(content.questions)) {
+                            const questionsContainer = component.querySelector('.questions-container');
+                            const addButton = component.querySelector('.add-question');
+                            
+                            if (questionsContainer && addButton) {
+                                // Remove existing questions
+                                questionsContainer.querySelectorAll('.question-item').forEach(item => item.remove());
+                                
+                                // Add questions from content
+                                content.questions.forEach(question => {
+                                    const questionItem = document.createElement('div');
+                                    questionItem.className = 'question-item';
+                                    questionItem.innerHTML = `<div class="question-text" contenteditable="true">${question}</div>`;
+                                    
+                                    // Insert before add button
+                                    questionsContainer.insertBefore(questionItem, addButton);
+                                    
+                                    // Setup contenteditable
+                                    const textElement = questionItem.querySelector('.question-text');
+                                    textElement.addEventListener('input', () => this.markDirty());
+                                    textElement.addEventListener('blur', () => this.saveStateToHistory());
+                                });
+                            }
                         }
-                    }
-                }
-                
-                // Populate logo content
-                else if (type === 'logo' && content.url) {
-                    const logoContainer = component.querySelector('.logo-container');
-                    if (logoContainer) {
-                        logoContainer.innerHTML = `
-                            <img src="${content.url}" alt="${content.alt || 'Logo'}" class="logo-image">
-                        `;
-                    }
+                        break;
+                    
+                    case 'social':
+                        if (content.platforms && Array.isArray(content.platforms)) {
+                            const socialContainer = component.querySelector('.social-container');
+                            const addButton = component.querySelector('.add-social');
+                            
+                            if (socialContainer && addButton) {
+                                // Remove existing social items
+                                socialContainer.querySelectorAll('.social-item').forEach(item => item.remove());
+                                
+                                // Add platforms from content
+                                content.platforms.forEach(platform => {
+                                    const socialItem = document.createElement('div');
+                                    socialItem.className = 'social-item';
+                                    
+                                    if (platform.platform && platform.link) {
+                                        socialItem.innerHTML = `
+                                            <div class="social-platform">${platform.platform}</div>
+                                            <div class="social-link" contenteditable="true">${platform.link}</div>
+                                        `;
+                                        
+                                        // Insert before add button
+                                        socialContainer.insertBefore(socialItem, addButton);
+                                        
+                                        // Setup contenteditable
+                                        const linkElement = socialItem.querySelector('.social-link');
+                                        linkElement.addEventListener('input', () => this.markDirty());
+                                        linkElement.addEventListener('blur', () => this.saveStateToHistory());
+                                    }
+                                });
+                            }
+                        }
+                        break;
+                    
+                    case 'logo':
+                        if (content.url) {
+                            const logoContainer = component.querySelector('.logo-container');
+                            if (logoContainer) {
+                                logoContainer.innerHTML = `
+                                    <img src="${content.url}" alt="${content.alt || 'Logo'}" class="logo-image">
+                                    <div class="upload-button">Change Logo</div>
+                                `;
+                            }
+                        }
+                        break;
                 }
             } catch (error) {
-                this.handleError(error, 'populate component content');
+                this.handleError(error, 'apply component content');
             }
         }
         
         /**
-         * Apply component styles
-         * @param {HTMLElement} component - Component element
-         * @param {Object} styles - Component styles
+         * Populate builder from components (fallback for old data)
+         * @param {Object} components - Component data
          */
-        applyComponentStyles(component, styles) {
+        populateFromComponents(components) {
             try {
-                if (!styles) return;
-                
-                // Apply inline styles
-                Object.entries(styles).forEach(([name, value]) => {
-                    // Skip custom attributes
-                    if (!['columns', 'style', 'size'].includes(name)) {
-                        component.style[name] = value;
-                    }
-                });
-                
-                // Apply custom attributes
-                if (styles.columns) {
-                    component.setAttribute('data-columns', styles.columns);
-                    
-                    // Apply to topics container if applicable
-                    if (component.getAttribute('data-component') === 'topics') {
-                        const topicsContainer = component.querySelector('.topics-container');
-                        if (topicsContainer) {
-                            topicsContainer.style.gridTemplateColumns = `repeat(${styles.columns}, 1fr)`;
-                        }
-                    }
+                if (!components || Object.keys(components).length === 0) {
+                    console.warn('No components provided to populate builder');
+                    this.createInitialDropZone();
+                    return;
                 }
                 
-                if (styles.style) {
-                    component.setAttribute('data-style', styles.style);
-                    
-                    // Apply to containers based on component type
-                    const componentType = component.getAttribute('data-component');
-                    
-                    if (componentType === 'topics') {
-                        const topicItems = component.querySelectorAll('.topic-item');
-                        topicItems.forEach(item => {
-                            item.className = `topic-item style-${styles.style}`;
-                        });
-                    } else if (componentType === 'questions') {
-                        const container = component.querySelector('.questions-container');
-                        if (container) {
-                            container.className = `questions-container style-${styles.style}`;
-                        }
-                    } else if (componentType === 'social') {
-                        const container = component.querySelector('.social-container');
-                        if (container) {
-                            container.className = `social-container style-${styles.style}`;
-                        }
-                    }
-                }
-                
-                if (styles.size) {
-                    component.setAttribute('data-size', styles.size);
-                    
-                    // Apply to social items if applicable
-                    if (component.getAttribute('data-component') === 'social') {
-                        const socialItems = component.querySelectorAll('.social-item');
-                        socialItems.forEach(item => {
-                            item.className = `social-item size-${styles.size}`;
-                        });
-                    }
-                }
-            } catch (error) {
-                this.handleError(error, 'apply component styles');
-            }
-        }
-        
-        /**
-         * Save media kit
-         */
-        saveMediaKit() {
-            try {
-                const data = this.getBuilderState();
-                
-                // Emit save event - adapter will handle actual saving
-                this.emit('save-requested', data);
-                
-                return data;
-            } catch (error) {
-                this.handleError(error, 'save media kit');
-                return null;
-            }
-        }
-        
-        /**
-         * Load media kit
-         * @param {Object} data - Media kit data
-         */
-        loadMediaKit(data) {
-            try {
-                this.setLoading(true);
-                
-                this.applyBuilderState(data);
-                this.markClean();
-                
-                this.emit('load-completed', { data });
-                
-                return true;
-            } catch (error) {
-                this.handleError(error, 'load media kit');
-                this.emit('load-failed', { error });
-                return false;
-            } finally {
-                this.setLoading(false);
-            }
-        }
-        
-        /**
-         * Add a new section to the builder
-         * @param {string} type - Section type
-         * @param {string} layout - Section layout
-         * @param {Object|Array} components - Section components
-         * @returns {string} Section ID
-         */
-        addSection(type, layout, components = []) {
-            try {
-                // Generate section ID
-                const sectionId = 'section-' + Date.now();
-                
-                // Create section element
-                const section = {
-                    id: sectionId,
-                    type: type || 'content',
-                    layout: layout || 'full-width',
+                // Create initial section
+                const section = this.createSectionElement({
+                    id: 'section-' + Date.now(),
+                    type: 'content',
+                    layout: 'full-width',
+                    order: 0,
                     settings: {
                         background: '#ffffff',
-                        padding: {
-                            top: '48px',
-                            bottom: '48px'
-                        }
-                    },
-                    components: components
-                };
-                
-                const sectionEl = this.createSectionElement(section);
-                
-                // Add to preview
-                this.elements.preview.appendChild(sectionEl);
-                
-                // Re-initialize event listeners
-                this.setupDragAndDrop();
-                this.setupSectionEventListeners();
-                
-                // Save state and mark dirty
-                this.saveStateToHistory();
-                this.markDirty();
-                
-                // Emit event
-                this.emit('section-added', {
-                    id: sectionId,
-                    type: type,
-                    layout: layout
+                        padding: { top: '48px', bottom: '48px' }
+                    }
                 });
                 
-                return sectionId;
+                // Get drop zone
+                const dropZone = section.querySelector('.drop-zone');
+                if (!dropZone) {
+                    console.warn('Drop zone not found in section');
+                    return;
+                }
+                
+                // Add components to drop zone
+                Object.values(components).forEach(componentData => {
+                    const componentEl = this.createComponentFromData(componentData);
+                    if (componentEl) {
+                        dropZone.appendChild(componentEl);
+                        dropZone.classList.remove('empty');
+                    }
+                });
+                
+                // Add section to preview
+                this.elements.preview.appendChild(section);
+                
+                // Re-initialize event listeners
+                this.setupElementSelection();
+                this.setupDragAndDrop();
             } catch (error) {
-                this.handleError(error, 'add section');
-                return null;
+                this.handleError(error, 'populate from components');
+            }
+        }
+        
+        /**
+         * Setup element selection
+         */
+        setupElementSelection() {
+            try {
+                const elements = this.elements.preview.querySelectorAll('.editable-element');
+                
+                elements.forEach(element => {
+                    this.setupElementEventListeners(element);
+                });
+            } catch (error) {
+                this.handleError(error, 'setup element selection');
             }
         }
         
@@ -3085,101 +2757,36 @@
          * @param {string} context - Error context
          */
         handleError(error, context) {
-            // Log error
-            console.error(`Media Kit Builder Error [${context}]:`, error);
+            console.error(`Error in ${context}:`, error);
             
-            // Add to state errors
+            // Track error in state
             this.state.errors.push({
-                error: error.message || String(error),
+                error: error.message,
+                stack: error.stack,
                 context,
-                timestamp: new Date(),
-                stack: error.stack
+                timestamp: new Date().toISOString()
             });
             
             // Emit error event
             this.emit('error', {
-                error: error.message || String(error),
+                error: error.message,
                 context,
                 timestamp: new Date()
             });
         }
-        
-        /**
-         * Log message to console
-         * @param {string} message - Message to log
-         * @param {string} level - Log level (log, info, warn, error)
-         */
-        log(message, level = 'log') {
-            if (!this.config.debugging && level !== 'error') return;
-            
-            switch (level) {
-                case 'info':
-                    console.info(`[MediaKitBuilder] ${message}`);
-                    break;
-                case 'warn':
-                    console.warn(`[MediaKitBuilder] ${message}`);
-                    break;
-                case 'error':
-                    console.error(`[MediaKitBuilder] ${message}`);
-                    break;
-                default:
-                    console.log(`[MediaKitBuilder] ${message}`);
-            }
-        }
-        
-        /**
-         * Get error history
-         * @returns {Array} Error history
-         */
-        getErrorHistory() {
-            return [...this.state.errors];
-        }
-        
-        /**
-         * Clear error history
-         */
-        clearErrorHistory() {
-            this.state.errors = [];
-        }
-        
-        /**
-         * Destroy the builder instance
-         * Clear all references and event listeners
-         */
-        destroy() {
-            try {
-                // Clear auto-save timer
-                if (this.autoSaveTimer) {
-                    clearInterval(this.autoSaveTimer);
-                    this.autoSaveTimer = null;
-                }
-                
-                // Clear all event handlers
-                this.eventHandlers = {};
-                
-                // Clear DOM references
-                this.elements = {};
-                
-                // Clear state
-                this.state = {};
-                
-                // Clear builder content
-                if (this.elements.preview) {
-                    this.elements.preview.innerHTML = '';
-                }
-                
-                // Remove global reference
-                if (window.mediaKitBuilder === this) {
-                    delete window.mediaKitBuilder;
-                }
-                
-                this.log('MediaKitBuilder instance destroyed');
-            } catch (error) {
-                console.error('Error destroying MediaKitBuilder:', error);
-            }
-        }
     }
     
-    // Expose MediaKitBuilder to global scope
+    // Make MediaKitBuilder available globally
     window.MediaKitBuilder = MediaKitBuilder;
-})();
+    
+    // Initialize when DOM is ready
+    $(document).ready(function() {
+        console.log('Document ready, initializing Media Kit Builder...');
+        if (window.mediaKitBuilder) {
+            console.log('Media Kit Builder already initialized');
+        } else {
+            console.log('Creating new Media Kit Builder instance');
+            window.mediaKitBuilder = new MediaKitBuilder();
+        }
+    });
+})(jQuery);
