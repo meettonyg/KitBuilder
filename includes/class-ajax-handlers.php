@@ -16,15 +16,23 @@ class Media_Kit_Builder_AJAX_Handlers {
     
     private function init_hooks() {
         // AJAX actions for logged-in users
-        add_action('wp_ajax_mkb_load_data', array($this, 'load_media_kit_data'));
-        add_action('wp_ajax_mkb_save_data', array($this, 'save_media_kit_data'));
+        add_action('wp_ajax_load_media_kit', array($this, 'load_media_kit_data'));
+        add_action('wp_ajax_update_media_kit', array($this, 'update_media_kit'));
+        add_action('wp_ajax_create_media_kit', array($this, 'create_media_kit'));
         add_action('wp_ajax_mkb_create_guest_session', array($this, 'create_guest_session'));
         add_action('wp_ajax_mkb_save_guest_data', array($this, 'save_guest_data'));
         add_action('wp_ajax_mkb_migrate_guest_data', array($this, 'migrate_guest_data'));
         add_action('wp_ajax_mkb_export_pdf', array($this, 'export_pdf'));
         add_action('wp_ajax_mkb_get_templates', array($this, 'get_templates'));
         
+        // Legacy action names - redirect to new handlers
+        add_action('wp_ajax_mkb_load_data', array($this, 'load_media_kit_data'));
+        add_action('wp_ajax_mkb_save_data', array($this, 'save_media_kit_data'));
+        
         // AJAX actions for non-logged-in users (guests)
+        add_action('wp_ajax_nopriv_load_media_kit', array($this, 'load_media_kit_data'));
+        add_action('wp_ajax_nopriv_update_media_kit', array($this, 'update_media_kit'));
+        add_action('wp_ajax_nopriv_create_media_kit', array($this, 'create_media_kit'));
         add_action('wp_ajax_nopriv_mkb_create_guest_session', array($this, 'create_guest_session'));
         add_action('wp_ajax_nopriv_mkb_save_guest_data', array($this, 'save_guest_data'));
         add_action('wp_ajax_nopriv_mkb_get_templates', array($this, 'get_templates'));
@@ -36,25 +44,48 @@ class Media_Kit_Builder_AJAX_Handlers {
      */
     public function load_media_kit_data() {
         // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'mkb_nonce')) {
-            wp_send_json_error('Invalid nonce');
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mkb_nonce')) {
+            wp_send_json_error(array(
+                'message' => 'Invalid security token'
+            ));
             return;
         }
         
-        $entry_key = sanitize_text_field($_POST['entry_key']);
+        $kit_id = isset($_POST['kit_id']) ? sanitize_text_field($_POST['kit_id']) : 
+                 (isset($_POST['entry_key']) ? sanitize_text_field($_POST['entry_key']) : '');
+                 
+        $is_new = isset($_POST['is_new']) && $_POST['is_new'] === 'true';
         $user_id = get_current_user_id();
         
+        // If this is a new kit request, return empty template
+        if ($is_new) {
+            wp_send_json_success(array(
+                'is_new' => true,
+                'data' => array(
+                    'kit_data' => json_encode($this->get_default_template_data())
+                ),
+                'access_tier' => $this->get_user_access_tier($user_id),
+                'can_edit' => true
+            ));
+            return;
+        }
+        
         // Get Formidable entry by key
-        $entry = $this->get_formidable_entry_by_key($entry_key);
+        $entry = $this->get_formidable_entry_by_key($kit_id);
         
         if (!$entry) {
-            wp_send_json_error('Media kit not found');
+            wp_send_json_error(array(
+                'message' => 'Media kit not found',
+                'is_new' => true
+            ));
             return;
         }
         
         // Check if user has access to this entry
         if ($user_id && !$this->user_can_edit_entry($user_id, $entry)) {
-            wp_send_json_error('Access denied');
+            wp_send_json_error(array(
+                'message' => 'Access denied'
+            ));
             return;
         }
         
@@ -71,7 +102,9 @@ class Media_Kit_Builder_AJAX_Handlers {
         $access_tier = $this->get_user_access_tier($user_id);
         
         wp_send_json_success(array(
-            'data' => $data,
+            'data' => array(
+                'kit_data' => json_encode($data)
+            ),
             'access_tier' => $access_tier,
             'entry_id' => $entry->id,
             'can_edit' => true
@@ -79,46 +112,151 @@ class Media_Kit_Builder_AJAX_Handlers {
     }
     
     /**
-     * Save media kit data
+     * Save media kit data (legacy method)
      */
     public function save_media_kit_data() {
+        // Determine if creating or updating based on entry_key presence
+        if (isset($_POST['entry_key']) && !empty($_POST['entry_key'])) {
+            $this->update_media_kit();
+        } else {
+            $this->create_media_kit();
+        }
+    }
+    
+    /**
+     * Create a new media kit
+     */
+    public function create_media_kit() {
         // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'mkb_nonce')) {
-            wp_send_json_error('Invalid nonce');
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mkb_nonce')) {
+            wp_send_json_error(array(
+                'message' => 'Invalid security token'
+            ));
             return;
         }
         
-        $entry_key = sanitize_text_field($_POST['entry_key']);
-        $data = $_POST['data']; // Will be sanitized in mapping function
+        $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : get_current_user_id();
+        $access_tier = isset($_POST['access_tier']) ? sanitize_text_field($_POST['access_tier']) : 'guest';
+        $kit_data = isset($_POST['kit_data']) ? $_POST['kit_data'] : '{}'; // Will be sanitized in mapping function
+        
+        // Create entry with entry key
+        $entry_key = 'mk_' . time() . '_' . wp_generate_password(8, false);
+        
+        // Parse kit data
+        $kit_data_array = json_decode($kit_data, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            wp_send_json_error(array(
+                'message' => 'Invalid JSON data'
+            ));
+            return;
+        }
+        
+        // Extract data for Formidable
+        $formidable_data = array();
+        if (isset($kit_data_array['content'])) {
+            $formidable_data = $kit_data_array['content'];
+        } else if (isset($kit_data_array['metadata']['legacyData'])) {
+            $formidable_data = $kit_data_array['metadata']['legacyData'];
+        }
+        
+        // Create Formidable entry
+        $entry_id = $this->create_formidable_entry($user_id, $formidable_data, $entry_key);
+        
+        if (!$entry_id) {
+            wp_send_json_error(array(
+                'message' => 'Failed to create media kit'
+            ));
+            return;
+        }
+        
+        // If user is logged in, also create Pods entry
+        if ($user_id > 0) {
+            $this->create_pods_entry_for_user($user_id, $formidable_data);
+        }
+        
+        // Return success with new entry key
+        wp_send_json_success(array(
+            'entry_key' => $entry_key,
+            'kit_id' => $entry_key,
+            'message' => 'Media kit created successfully'
+        ));
+    }
+    
+    /**
+     * Update an existing media kit
+     */
+    public function update_media_kit() {
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mkb_nonce')) {
+            wp_send_json_error(array(
+                'message' => 'Invalid security token'
+            ));
+            return;
+        }
+        
+        $entry_key = isset($_POST['entry_key']) ? sanitize_text_field($_POST['entry_key']) : '';
+        $kit_data = isset($_POST['kit_data']) ? $_POST['kit_data'] : '{}'; // Will be sanitized in mapping function
         $user_id = get_current_user_id();
+        
+        if (empty($entry_key)) {
+            wp_send_json_error(array(
+                'message' => 'No entry key provided'
+            ));
+            return;
+        }
         
         // Get Formidable entry
         $entry = $this->get_formidable_entry_by_key($entry_key);
         
         if (!$entry) {
-            wp_send_json_error('Media kit not found');
+            wp_send_json_error(array(
+                'message' => 'Media kit not found'
+            ));
             return;
         }
         
         // Check access
         if ($user_id && !$this->user_can_edit_entry($user_id, $entry)) {
-            wp_send_json_error('Access denied');
+            wp_send_json_error(array(
+                'message' => 'Access denied'
+            ));
             return;
         }
         
+        // Parse kit data
+        $kit_data_array = json_decode($kit_data, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            wp_send_json_error(array(
+                'message' => 'Invalid JSON data'
+            ));
+            return;
+        }
+        
+        // Extract data for Formidable
+        $formidable_data = array();
+        if (isset($kit_data_array['content'])) {
+            $formidable_data = $kit_data_array['content'];
+        } else if (isset($kit_data_array['metadata']['legacyData'])) {
+            $formidable_data = $kit_data_array['metadata']['legacyData'];
+        }
+        
         // Map and save to Formidable
-        $formidable_success = $this->save_to_formidable($entry->id, $data);
+        $formidable_success = $this->save_to_formidable($entry->id, $formidable_data);
         
         // If user is logged in, also save to Pods
         $pods_success = true;
         if ($user_id) {
-            $pods_success = $this->save_to_pods($user_id, $data);
+            $pods_success = $this->save_to_pods($user_id, $formidable_data);
         }
         
         if ($formidable_success && $pods_success) {
-            wp_send_json_success('Media kit saved successfully');
+            wp_send_json_success(array(
+                'message' => 'Media kit updated successfully'
+            ));
         } else {
-            wp_send_json_error('Failed to save media kit');
+            wp_send_json_error(array(
+                'message' => 'Failed to update media kit'
+            ));
         }
     }
     
@@ -154,7 +292,9 @@ class Media_Kit_Builder_AJAX_Handlers {
                 'expires_at' => $expiry
             ));
         } else {
-            wp_send_json_error('Failed to create guest session');
+            wp_send_json_error(array(
+                'message' => 'Failed to create guest session'
+            ));
         }
     }
     
@@ -162,11 +302,13 @@ class Media_Kit_Builder_AJAX_Handlers {
      * Save guest data to session
      */
     public function save_guest_data() {
-        $session_id = sanitize_text_field($_POST['session_id']);
-        $data = $_POST['data'];
+        $session_id = isset($_POST['session_id']) ? sanitize_text_field($_POST['session_id']) : '';
+        $data = isset($_POST['data']) ? $_POST['data'] : '';
         
         if (!$session_id) {
-            wp_send_json_error('Invalid session');
+            wp_send_json_error(array(
+                'message' => 'Invalid session'
+            ));
             return;
         }
         
@@ -186,9 +328,13 @@ class Media_Kit_Builder_AJAX_Handlers {
         );
         
         if ($result !== false) {
-            wp_send_json_success('Guest data saved');
+            wp_send_json_success(array(
+                'message' => 'Guest data saved'
+            ));
         } else {
-            wp_send_json_error('Failed to save guest data');
+            wp_send_json_error(array(
+                'message' => 'Failed to save guest data'
+            ));
         }
     }
     
@@ -197,11 +343,13 @@ class Media_Kit_Builder_AJAX_Handlers {
      */
     public function migrate_guest_data() {
         if (!is_user_logged_in()) {
-            wp_send_json_error('User not logged in');
+            wp_send_json_error(array(
+                'message' => 'User not logged in'
+            ));
             return;
         }
         
-        $session_id = sanitize_text_field($_POST['session_id']);
+        $session_id = isset($_POST['session_id']) ? sanitize_text_field($_POST['session_id']) : '';
         $user_id = get_current_user_id();
         
         // Get guest session data
@@ -214,14 +362,19 @@ class Media_Kit_Builder_AJAX_Handlers {
         ));
         
         if (!$session) {
-            wp_send_json_error('Guest session not found');
+            wp_send_json_error(array(
+                'message' => 'Guest session not found'
+            ));
             return;
         }
         
         $guest_data = json_decode($session->data, true);
         
+        // Generate entry key
+        $entry_key = 'mk_' . time() . '_' . wp_generate_password(8, false);
+        
         // Create new Formidable entry for user
-        $entry_id = $this->create_formidable_entry_for_user($user_id, $guest_data);
+        $entry_id = $this->create_formidable_entry($user_id, $guest_data, $entry_key);
         
         if ($entry_id) {
             // Create Pods entry
@@ -230,15 +383,15 @@ class Media_Kit_Builder_AJAX_Handlers {
             // Clean up guest session
             $wpdb->delete($table_name, array('session_id' => $session_id), array('%s'));
             
-            // Get entry key for redirect
-            $entry_key = $this->get_entry_key_by_id($entry_id);
-            
             wp_send_json_success(array(
                 'entry_key' => $entry_key,
+                'kit_id' => $entry_key,
                 'redirect_url' => home_url("/media-kit-builder/$entry_key")
             ));
         } else {
-            wp_send_json_error('Failed to migrate guest data');
+            wp_send_json_error(array(
+                'message' => 'Failed to migrate guest data'
+            ));
         }
     }
     
@@ -246,7 +399,7 @@ class Media_Kit_Builder_AJAX_Handlers {
      * Export media kit to PDF
      */
     public function export_pdf() {
-        $entry_key = sanitize_text_field($_POST['entry_key']);
+        $entry_key = isset($_POST['entry_key']) ? sanitize_text_field($_POST['entry_key']) : '';
         $user_id = get_current_user_id();
         
         // Get access tier to determine watermarking
@@ -255,7 +408,9 @@ class Media_Kit_Builder_AJAX_Handlers {
         // Get media kit data
         $entry = $this->get_formidable_entry_by_key($entry_key);
         if (!$entry) {
-            wp_send_json_error('Media kit not found');
+            wp_send_json_error(array(
+                'message' => 'Media kit not found'
+            ));
             return;
         }
         
@@ -267,7 +422,9 @@ class Media_Kit_Builder_AJAX_Handlers {
         if ($pdf_url) {
             wp_send_json_success(array('pdf_url' => $pdf_url));
         } else {
-            wp_send_json_error('Failed to generate PDF');
+            wp_send_json_error(array(
+                'message' => 'Failed to generate PDF'
+            ));
         }
     }
     
@@ -341,6 +498,99 @@ class Media_Kit_Builder_AJAX_Handlers {
         }
         
         wp_send_json_success($available_templates);
+    }
+    
+    /**
+     * Get default template data for new media kits
+     */
+    private function get_default_template_data() {
+        return array(
+            'theme' => array(
+                'id' => 'modern-blue',
+                'customizations' => array()
+            ),
+            'content' => array(
+                'hero_full_name' => 'Your Name',
+                'hero_title' => 'Your Professional Title',
+                'bio_text' => 'Add your professional biography here. Describe your expertise, experience, and what makes you unique.',
+                'topic_1' => 'Leadership',
+                'topic_2' => 'Innovation', 
+                'topic_3' => 'Strategy',
+                'topic_4' => 'Growth'
+            ),
+            'components' => array(
+                'hero-1' => array(
+                    'type' => 'hero',
+                    'content' => array(
+                        'name' => 'Your Name',
+                        'title' => 'Your Professional Title',
+                        'bio' => 'Add your professional biography here.'
+                    ),
+                    'styles' => array()
+                ),
+                'topics-1' => array(
+                    'type' => 'topics',
+                    'content' => array(
+                        'items' => array(
+                            'Leadership',
+                            'Innovation',
+                            'Strategy',
+                            'Growth'
+                        )
+                    ),
+                    'styles' => array()
+                ),
+                'social-1' => array(
+                    'type' => 'social',
+                    'content' => array(
+                        'links' => array(
+                            array('platform' => 'Twitter', 'url' => '#'),
+                            array('platform' => 'LinkedIn', 'url' => '#'),
+                            array('platform' => 'Instagram', 'url' => '#')
+                        )
+                    ),
+                    'styles' => array()
+                )
+            ),
+            'sections' => array(
+                array(
+                    'id' => 'section-hero-1',
+                    'type' => 'hero',
+                    'layout' => 'full-width',
+                    'order' => 0,
+                    'settings' => array(
+                        'background' => array('type' => 'color', 'value' => '#ffffff'),
+                        'padding' => array('top' => '48px', 'bottom' => '48px')
+                    ),
+                    'components' => array('hero-1')
+                ),
+                array(
+                    'id' => 'section-content-1',
+                    'type' => 'content',
+                    'layout' => 'full-width',
+                    'order' => 1,
+                    'settings' => array(
+                        'background' => array('type' => 'color', 'value' => '#ffffff'),
+                        'padding' => array('top' => '48px', 'bottom' => '48px')
+                    ),
+                    'components' => array('topics-1')
+                ),
+                array(
+                    'id' => 'section-contact-1',
+                    'type' => 'contact',
+                    'layout' => 'full-width',
+                    'order' => 2,
+                    'settings' => array(
+                        'background' => array('type' => 'color', 'value' => '#ffffff'),
+                        'padding' => array('top' => '48px', 'bottom' => '48px')
+                    ),
+                    'components' => array('social-1')
+                )
+            ),
+            'metadata' => array(
+                'version' => '2.0'
+            )
+        );
     }
     
     /**
@@ -476,6 +726,82 @@ class Media_Kit_Builder_AJAX_Handlers {
     }
     
     /**
+     * Create a new Formidable entry with entry key
+     */
+    private function create_formidable_entry($user_id, $data, $entry_key) {
+        if (!class_exists('FrmEntry')) {
+            return false;
+        }
+        
+        // Map data to Formidable fields using the reverse field mapping
+        $field_mapping = array(
+            // Hero/Profile Section
+            8029 => 'hero_first_name',      // First Name
+            8176 => 'hero_last_name',       // Last Name
+            8517 => 'hero_full_name',       // Full Name
+            10388 => 'hero_title',          // Position/Title
+            8032 => 'hero_organization',    // Organization
+            8046 => 'hero_headshot',        // Head Shot
+            8489 => 'hero_tagline',         // Tagline
+            
+            // Biography Section
+            8045 => 'bio_text',             // Bio text
+            
+            // Topics
+            8498 => 'topic_1',              // Topic 1
+            8499 => 'topic_2',              // Topic 2
+            8500 => 'topic_3',              // Topic 3
+            8501 => 'topic_4',              // Topic 4
+            8502 => 'topic_5',              // Topic 5
+            
+            // Social Media
+            8035 => 'social_facebook',      // Facebook
+            8036 => 'social_twitter',       // Twitter
+            8037 => 'social_instagram',     // Instagram
+            8038 => 'social_linkedin',      // LinkedIn
+            8381 => 'social_youtube',       // YouTube
+            8382 => 'social_pinterest',     // Pinterest
+            8383 => 'social_tiktok',        // TikTok
+            
+            // Media
+            8047 => 'logo_primary',         // Logo
+            10423 => 'carousel_images',     // Carousel Images
+        );
+        
+        // Add question mappings
+        for ($i = 1; $i <= 25; $i++) {
+            $question_fields = array(
+                1 => 8505,  2 => 8506,  3 => 8507,  4 => 8508,  5 => 8509,
+                6 => 8510,  7 => 8511,  8 => 8512,  9 => 8513,  10 => 8514,
+                11 => 8515, 12 => 8516, 13 => 8518, 14 => 8519, 15 => 8520,
+                16 => 8521, 17 => 8522, 18 => 8523, 19 => 8524, 20 => 8525,
+                21 => 8526, 22 => 8527, 23 => 8528, 24 => 8529, 25 => 10384
+            );
+            if (isset($question_fields[$i])) {
+                $field_mapping[$question_fields[$i]] = "question_$i";
+            }
+        }
+        
+        // Prepare values for Formidable
+        $formidable_values = array();
+        foreach ($field_mapping as $formidable_field_id => $builder_field) {
+            if (isset($data[$builder_field])) {
+                $formidable_values[$formidable_field_id] = sanitize_text_field($data[$builder_field]);
+            }
+        }
+        
+        // Create entry
+        $entry_id = FrmEntry::create(array(
+            'form_id' => 515, // Your Formidable Form ID
+            'item_key' => $entry_key,
+            'values' => $formidable_values,
+            'user_id' => $user_id > 0 ? $user_id : null
+        ));
+        
+        return $entry_id;
+    }
+    
+    /**
      * Save data to Pods
      */
     private function save_to_pods($user_id, $data) {
@@ -606,26 +932,6 @@ class Media_Kit_Builder_AJAX_Handlers {
         ));
         
         return $entry ? $entry->item_key : false;
-    }
-    
-    private function create_formidable_entry_for_user($user_id, $guest_data) {
-        if (!class_exists('FrmEntry')) {
-            return false;
-        }
-        
-        // Create new Formidable entry with guest data
-        $values = array();
-        
-        // Map guest data to Formidable fields (using the field mapping above)
-        // This would use the reverse mapping we defined earlier
-        
-        $entry_id = FrmEntry::create(array(
-            'form_id' => 515, // Your Formidable Form ID
-            'values' => $values,
-            'user_id' => $user_id
-        ));
-        
-        return $entry_id;
     }
     
     private function create_guest_post_for_user($user_id) {
