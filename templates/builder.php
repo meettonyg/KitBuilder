@@ -8,6 +8,9 @@
 </head>
 <body class="<?php echo isset($body_class) ? esc_attr($body_class) : 'mkb-builder-page'; ?>">
 
+<!-- Add nonce field for AJAX security -->
+<input type="hidden" id="media_kit_builder_nonce" value="<?php echo wp_create_nonce('media_kit_builder_nonce'); ?>">
+
 <!-- Loading Overlay -->
 <div class="loading-overlay" id="loading-overlay">
     <div class="loading-spinner"></div>
@@ -562,7 +565,7 @@ window.MediaKitBuilder = {
         isLoggedIn: <?php echo isset($is_logged_in) && $is_logged_in ? 'true' : 'false'; ?>,
         accessTier: '<?php echo isset($access_tier) ? esc_js($access_tier) : 'guest'; ?>',
         ajaxUrl: '<?php echo admin_url('admin-ajax.php'); ?>',
-        nonce: '<?php echo wp_create_nonce('mkb_nonce'); ?>',
+        nonce: '<?php echo wp_create_nonce('media_kit_builder_nonce'); ?>',
         pluginUrl: '<?php echo plugin_dir_url(dirname(__FILE__)); ?>'
     },
     
@@ -655,18 +658,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<!-- Section Templates System -->
-<script src="<?php echo plugin_dir_url(dirname(__FILE__)); ?>assets/js/section-templates.js"></script>
-<script src="<?php echo plugin_dir_url(dirname(__FILE__)); ?>assets/js/template-workflow-test.js"></script>
-<script src="<?php echo plugin_dir_url(dirname(__FILE__)); ?>assets/js/premium-access-control.js"></script>
-
-<!-- Fixed Premium Components Handler -->
-<script src="<?php echo plugin_dir_url(dirname(__FILE__)); ?>assets/js/fixed-premium-component-handler.js"></script>
-
-<!-- All fixes integrated into core files - removed section-management-fix.js -->
-
-<!-- No patches needed - fixed at root level -->
-
 <!-- Error checking -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -677,6 +668,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('premiumAccess:', typeof window.premiumAccess);
         console.log('MediaKitBuilder:', typeof window.MediaKitBuilder);
         console.log('Nonce available:', window.MediaKitBuilder?.config?.nonce ? 'Yes' : 'No');
+        console.log('Nonce from hidden field:', document.getElementById('media_kit_builder_nonce')?.value ? 'Yes' : 'No');
         
         if (typeof showAddSectionModal === 'function') {
             console.log('✅ Template system loaded successfully');

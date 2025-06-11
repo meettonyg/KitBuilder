@@ -1,19 +1,15 @@
 <?php
 /**
- * WordPress React Integration - Phase 3 Days 13-14
- * Connects React Builder Interface with WordPress backend
- * 
- * Handles enqueuing, configuration, and AJAX endpoints
- * Integrates with existing state management and component systems
- * 
+ * React Integration
+ *
  * @package MediaKitBuilder
- * @since 1.0.0
  */
 
-if (!defined('ABSPATH')) {
-    exit;
-}
+defined('ABSPATH') || exit;
 
+/**
+ * React Integration class.
+ */
 class Guestify_React_Integration {
     
     /**
@@ -61,9 +57,7 @@ class Guestify_React_Integration {
         // Setup configuration
         $this->setup_config();
         
-        // Register hooks
-        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_frontend_assets'));
+        // Register hooks - React is now loaded in enqueue-scripts.php
         add_action('admin_footer', array($this, 'render_admin_builder'));
         add_action('wp_footer', array($this, 'render_frontend_builder'));
         
@@ -116,137 +110,6 @@ class Guestify_React_Integration {
     }
 
     /**
-     * Enqueue admin assets
-     */
-    public function enqueue_admin_assets($hook) {
-        // Only load on media kit builder pages
-        if (!$this->should_load_on_page($hook)) {
-            return;
-        }
-        
-        $this->enqueue_react_assets();
-        $this->enqueue_admin_styles();
-        
-        // Add body class for admin styling
-        add_action('admin_body_class', function($classes) {
-            return $classes . ' mkb-builder-active';
-        });
-    }
-
-    /**
-     * Enqueue frontend assets
-     */
-    public function enqueue_frontend_assets() {
-        // Only load when shortcode is present or specific conditions met
-        if (!$this->should_load_frontend()) {
-            return;
-        }
-        
-        $this->enqueue_react_assets();
-        $this->enqueue_frontend_styles();
-    }
-
-    /**
-     * Enqueue React assets
-     */
-    private function enqueue_react_assets() {
-        $plugin_url = plugin_dir_url(dirname(__FILE__, 2));
-        $plugin_path = plugin_dir_path(dirname(__FILE__, 2));
-        
-        // Development vs Production assets
-        if ($this->is_dev && file_exists($plugin_path . 'app/build/js/builder.js')) {
-            // Development build
-            wp_enqueue_script(
-                'mkb-builder-js',
-                $plugin_url . 'app/build/js/builder.js',
-                array(),
-                $this->version,
-                true
-            );
-        } elseif (file_exists($plugin_path . 'app/build/js/builder.min.js')) {
-            // Production build
-            wp_enqueue_script(
-                'mkb-builder-js',
-                $plugin_url . 'app/build/js/builder.min.js',
-                array(),
-                $this->version,
-                true
-            );
-        } else {
-            // Fallback - log error
-            $this->log_message('React build files not found', 'error');
-            return;
-        }
-        
-        // Enqueue React dependencies
-        wp_enqueue_script(
-            'mkb-react-vendor',
-            $plugin_url . 'app/build/js/vendors.js',
-            array(),
-            $this->version,
-            true
-        );
-        
-        // Enqueue CSS
-        wp_enqueue_style(
-            'mkb-builder-css',
-            $plugin_url . 'assets/css/builder.css',
-            array(),
-            $this->version
-        );
-        
-        // Localize script with configuration
-        wp_localize_script('mkb-builder-js', 'mkbConfig', $this->config);
-        
-        // Add inline script to initialize
-        $init_script = $this->generate_init_script();
-        wp_add_inline_script('mkb-builder-js', $init_script, 'after');
-    }
-
-    /**
-     * Enqueue admin-specific styles
-     */
-    private function enqueue_admin_styles() {
-        $plugin_url = plugin_dir_url(dirname(__FILE__, 2));
-        
-        wp_enqueue_style(
-            'mkb-admin-css',
-            $plugin_url . 'assets/css/admin.css',
-            array(),
-            $this->version
-        );
-    }
-
-    /**
-     * Enqueue frontend-specific styles
-     */
-    private function enqueue_frontend_styles() {
-        $plugin_url = plugin_dir_url(dirname(__FILE__, 2));
-        
-        wp_enqueue_style(
-            'mkb-frontend-css',
-            $plugin_url . 'assets/css/frontend.css',
-            array(),
-            $this->version
-        );
-    }
-
-    /**
-     * Generate initialization script
-     */
-    private function generate_init_script() {
-        return "
-            document.addEventListener('DOMContentLoaded', function() {
-                if (typeof MediaKitBuilder !== 'undefined') {
-                    MediaKitBuilder.init('mkb-builder-root', window.mkbConfig);
-                } else {
-                    console.error('MediaKitBuilder not loaded');
-                }
-            });
-        ";
-    }
-
-    /**
      * Render admin builder container
      */
     public function render_admin_builder() {
@@ -283,9 +146,6 @@ class Guestify_React_Integration {
         
         $container_id = 'mkb-shortcode-' . uniqid();
         
-        // Enqueue assets if not already done
-        $this->enqueue_react_assets();
-        
         // Generate shortcode-specific config
         $shortcode_config = array_merge($this->config, array(
             'userId' => intval($atts['user-id']),
@@ -294,15 +154,6 @@ class Guestify_React_Integration {
             'readonly' => filter_var($atts['readonly'], FILTER_VALIDATE_BOOLEAN),
             'shortcode' => true
         ));
-        
-        // Add initialization script for this specific shortcode
-        wp_add_inline_script('mkb-builder-js', "
-            document.addEventListener('DOMContentLoaded', function() {
-                if (typeof MediaKitBuilder !== 'undefined') {
-                    MediaKitBuilder.init('{$container_id}', " . json_encode($shortcode_config) . ");
-                }
-            });
-        ", 'after');
         
         return sprintf(
             '<div id="%s" class="mkb-shortcode-container %s" style="height: %s;" data-user-id="%s" data-media-kit-id="%s">
@@ -533,28 +384,6 @@ class Guestify_React_Integration {
      * Helper Methods
      */
     
-    private function should_load_on_page($hook) {
-        $valid_hooks = array(
-            'toplevel_page_media-kit-builder',
-            'media-kit-builder_page_mkb-templates',
-            'media-kit-builder_page_mkb-settings'
-        );
-        
-        return in_array($hook, $valid_hooks);
-    }
-
-    private function should_load_frontend() {
-        global $post;
-        
-        // Load if shortcode is present
-        if ($post && has_shortcode($post->post_content, 'media-kit-builder')) {
-            return true;
-        }
-        
-        // Load on specific frontend pages
-        return is_page('media-kit-builder') || is_page('create-media-kit');
-    }
-
     private function should_render_admin_builder() {
         $screen = get_current_screen();
         return $screen && strpos($screen->id, 'media-kit-builder') !== false;
