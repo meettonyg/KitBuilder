@@ -663,6 +663,8 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Fixed Premium Components Handler -->
 <script src="<?php echo plugin_dir_url(dirname(__FILE__)); ?>assets/js/fixed-premium-component-handler.js"></script>
 
+<!-- No patches needed - fixed at root level -->
+
 <!-- Error checking -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -671,6 +673,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('showAddSectionModal:', typeof showAddSectionModal);
         console.log('sectionTemplates:', typeof window.sectionTemplates);
         console.log('premiumAccess:', typeof window.premiumAccess);
+        console.log('MediaKitBuilder:', typeof window.MediaKitBuilder);
+        console.log('Nonce available:', window.MediaKitBuilder?.config?.nonce ? 'Yes' : 'No');
         
         if (typeof showAddSectionModal === 'function') {
             console.log('✅ Template system loaded successfully');
@@ -686,6 +690,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Run the fixed handler
             window.setupPremiumComponentHandlers();
         }
+        
+        // Template system should now work correctly with built-in fixes
+        console.log('🔧 Template system using native functionality with integrated fixes');
+        
+        // Debug available template modal buttons
+        console.log('Add Section buttons found:', document.querySelectorAll('#add-section-btn, #add-section-btn-primary').length);
+        console.log('Template buttons found:', document.querySelectorAll('#section-templates-btn').length);
     }, 1000);
 });
 </script>

@@ -724,9 +724,9 @@ function loadMediaKitData() {
     
     // Make AJAX request to load data using updated endpoint
     const loadData = {
-        action: 'mkb_load_media_kit', // This is the correct endpoint matching the PHP handler
+        action: 'load_media_kit', // This is the correct endpoint matching the PHP handler
         nonce: config.nonce,
-        kit_id: config.entryKey,
+        entry_key: config.entryKey,
         session_id: sessionId,
         user_id: config.userId,
         access_tier: config.accessTier

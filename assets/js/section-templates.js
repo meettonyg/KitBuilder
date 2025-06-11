@@ -14,11 +14,8 @@ async function fetchSectionTemplates() {
     try {
         console.log('📡 Fetching section templates from registry...');
         
-        // Get nonce from multiple possible sources to ensure authentication works
-        const nonce = window.MediaKitBuilder?.config?.nonce || 
-                    window.mkbConfig?.nonce || 
-                    document.querySelector('#_wpnonce')?.value || 
-                    '';
+        // Enhanced nonce retrieval from multiple sources
+        const nonce = getAuthNonce();
         
         console.log('🔑 Using nonce for templates API:', nonce ? 'Found' : 'Not found');
         
@@ -33,6 +30,7 @@ async function fetchSectionTemplates() {
         });
         
         if (!response.ok) {
+            console.error(`❌ Template API Error: ${response.status} ${response.statusText}`);
             throw new Error(`Server returned ${response.status}: ${response.statusText}`);
         }
         
@@ -91,12 +89,90 @@ async function fetchSectionTemplates() {
                         }
                     }
                 ]
+            },
+            'two-column-bio': {
+                name: 'Two Column Bio',
+                type: 'content',
+                layout: 'two-column',
+                description: 'Biography with image',
+                premium: false,
+                components: {
+                    'left': [
+                        {
+                            type: 'bio',
+                            content: {
+                                title: 'About Me',
+                                text: 'Your professional biography goes here...'
+                            }
+                        }
+                    ],
+                    'right': [
+                        {
+                            type: 'image',
+                            content: {
+                                url: '',
+                                alt: 'Profile Image'
+                            }
+                        }
+                    ]
+                }
+            },
+            'social-links': {
+                name: 'Social Links',
+                type: 'contact',
+                layout: 'full-width',
+                description: 'Social media links',
+                premium: false,
+                components: [
+                    {
+                        type: 'social',
+                        content: {}
+                    }
+                ]
             }
         };
         
         console.log('📋 Loaded default templates:', Object.keys(defaultTemplates).length);
         return defaultTemplates;
     }
+}
+
+/**
+ * Enhanced nonce retrieval function that checks multiple sources
+ * and ensures we always get a valid nonce for API requests.
+ * @returns {string} - WordPress nonce for REST API authentication
+ */
+function getAuthNonce() {
+    // Try all possible sources for the nonce
+    const possibleSources = [
+        // Primary source - from the MediaKitBuilder config
+        window.MediaKitBuilder?.config?.nonce,
+        
+        // Secondary source - from mkbConfig if available
+        window.mkbConfig?.nonce,
+        
+        // Get from any nonce fields in the DOM
+        document.querySelector('#_wpnonce')?.value,
+        document.querySelector('[name="_wpnonce"]')?.value,
+        
+        // Look for data attributes that might contain nonce
+        document.querySelector('[data-nonce]')?.getAttribute('data-nonce'),
+        
+        // Last resort - check if there's a global nonce variable
+        window._wpnonce
+    ];
+    
+    // Return the first non-empty value
+    for (const source of possibleSources) {
+        if (source) {
+            console.log('📌 Found nonce from source:', source.substring(0, 4) + '...');
+            return source;
+        }
+    }
+    
+    // If no nonce found, log error and return empty string
+    console.error('❌ No valid nonce found from any source');
+    return '';
 }
 
 /**
@@ -324,6 +400,54 @@ function setupTemplateSelectionHandlers() {
             insertSectionTemplate(templateId);
         });
     }
+}
+
+/**
+ * Setup all template button event handlers
+ * Ensures that all section and template buttons properly trigger the modal
+ */
+function setupTemplateButtonHandlers() {
+    console.log('Setting up template button handlers');
+    
+    // Find all add section buttons
+    const addSectionButtons = document.querySelectorAll('#add-section-btn, #add-section-btn-primary');
+    const templateButtons = document.querySelectorAll('#section-templates-btn');
+    
+    console.log(`Found ${addSectionButtons.length} add section buttons and ${templateButtons.length} template buttons`);
+    
+    // Setup handlers for all add section buttons
+    addSectionButtons.forEach((button, index) => {
+        // Remove any existing handlers to avoid duplicates
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        
+        // Add reliable handler
+        newButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log(`Add Section button ${index + 1} clicked`);
+            showAddSectionModal();
+        });
+        
+        console.log(`Handler attached to add section button ${index + 1}`);
+    });
+    
+    // Setup handlers for template buttons
+    templateButtons.forEach((button, index) => {
+        // Remove any existing handlers to avoid duplicates
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        
+        // Add reliable handler
+        newButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log(`Template button ${index + 1} clicked`);
+            showAddSectionModal();
+        });
+        
+        console.log(`Handler attached to template button ${index + 1}`);
+    });
+    
+    console.log('Template button handlers setup complete');
 }
 
 /**
@@ -805,6 +929,21 @@ function initTemplateSystem() {
                 }
             }
             
+            // Even if builder isn't fully ready, still attempt to setup button handlers
+            // This can work independently from the full template system
+            try {
+                setupTemplateButtonHandlers();
+                console.log('✅ Template button handlers set up despite builder initialization failure');
+                
+                // Create minimal templates modal if none exists
+                if (!document.getElementById('add-section-modal')) {
+                    createAddSectionModal();
+                    console.log('✅ Template modal created despite builder initialization failure');
+                }
+            } catch (e) {
+                console.error('Failed to set up template button handlers:', e);
+            }
+            
             // Give up - will require manual intervention
             console.error('❌ Template system initialization failed - builder functions unavailable');
             
@@ -837,6 +976,9 @@ async function completeTemplateInitialization() {
     
     // Set up event listeners
     setupTemplateEventListeners();
+    
+    // Set up button handlers (new step)
+    setupTemplateButtonHandlers();
     
     // Make functions globally available
     window.showAddSectionModal = showAddSectionModal;
