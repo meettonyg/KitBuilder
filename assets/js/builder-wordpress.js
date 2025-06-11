@@ -42,11 +42,20 @@ const fieldMappings = window.MediaKitBuilder?.fieldMappings || {};
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     initializeBuilder();
+    
+    // Re-initialize premium component handlers on any dynamic component addition
+    document.addEventListener('componentAdded', function(e) {
+        console.log('🔔 Component added event detected, re-initializing premium handlers...');
+        if (typeof window.setupPremiumComponentHandlers === 'function') {
+            window.setupPremiumComponentHandlers();
+        }
+    });
 });
 
 /**
- * Initialize premium handlers - NEW FUNCTION from Fix Plan
+ * Initialize premium handlers - ENHANCED VERSION
  * Ensures premium access control system is properly connected to UI
+ * with improved error handling and retry logic
  */
 function initializePremiumHandlers() {
     console.log('🔐 Initializing premium handlers integration...');
@@ -58,9 +67,31 @@ function initializePremiumHandlers() {
         // Setup premium component handlers
         if (typeof window.setupPremiumComponentHandlers === 'function') {
             console.log('🔧 Setting up premium component handlers...');
-            window.setupPremiumComponentHandlers();
+            try {
+                const result = window.setupPremiumComponentHandlers();
+                console.log(`💡 Handler setup result: ${result ? 'SUCCESS' : 'FAILED'}`);
+                
+                // If setup succeeds, attach the event listener for future component additions
+                if (result) {
+                    attachComponentAddedListener();
+                }
+            } catch (error) {
+                console.error('💥 Error during premium handler setup:', error);
+                // Try again once more after a delay
+                setTimeout(() => {
+                    try {
+                        console.log('🔄 Retrying premium handler setup...');
+                        window.setupPremiumComponentHandlers();
+                        attachComponentAddedListener();
+                    } catch (retryError) {
+                        console.error('❌ Final handler setup attempt failed:', retryError);
+                    }
+                }, 300);
+            }
         } else {
             console.warn('⚠️ setupPremiumComponentHandlers function not available');
+            // Try loading premium-access-control.js if not already loaded
+            tryLoadPremiumAccessControl();
         }
     } else {
         console.log('⏳ Premium access control not yet initialized, waiting...');
@@ -70,23 +101,117 @@ function initializePremiumHandlers() {
             if (typeof window.premiumAccess !== 'undefined' && window.premiumAccess.initialized) {
                 console.log('✅ Premium access control now available, setting up handlers...');
                 if (typeof window.setupPremiumComponentHandlers === 'function') {
-                    window.setupPremiumComponentHandlers();
+                    try {
+                        window.setupPremiumComponentHandlers();
+                        attachComponentAddedListener();
+                    } catch (error) {
+                        console.error('💥 Error setting up handlers after wait:', error);
+                    }
+                } else {
+                    console.warn('⚠️ setupPremiumComponentHandlers function not available after wait');
+                    // Try loading premium-access-control.js if not already loaded
+                    tryLoadPremiumAccessControl();
                 }
             } else {
                 console.warn('⚠️ Premium access control system not available after timeout');
+                // As a last resort, initialize premium access directly
+                if (typeof initializePremiumAccess === 'function') {
+                    console.log('🔄 Manually initializing premium access control...');
+                    initializePremiumAccess();
+                    
+                    // Wait again for the initialization to complete
+                    setTimeout(() => {
+                        if (typeof window.setupPremiumComponentHandlers === 'function') {
+                            window.setupPremiumComponentHandlers();
+                            attachComponentAddedListener();
+                        }
+                    }, 200);
+                }
             }
         }, 500);
     }
     
-    console.log('✅ Premium handlers initialization completed');
+    console.log('✅ Premium handlers initialization process completed');
 }
 
-// Make initializePremiumHandlers globally available for debugging
+/**
+ * Attach event listener for component additions to ensure premium handlers are updated
+ */
+function attachComponentAddedListener() {
+    // Only attach once
+    if (window.componentAddedListenerAttached) {
+        return;
+    }
+    
+    console.log('🔄 Attaching component added listener for premium handlers');
+    
+    document.addEventListener('componentAdded', function(e) {
+        console.log('🔔 Component added event detected, re-initializing premium handlers...');
+        if (typeof window.setupPremiumComponentHandlers === 'function') {
+            setTimeout(() => {
+                window.setupPremiumComponentHandlers();
+            }, 100);
+        }
+    });
+    
+    window.componentAddedListenerAttached = true;
+}
+
+/**
+ * Helper function to ensure premium-access-control.js is loaded
+ */
+function tryLoadPremiumAccessControl() {
+    // Don't try to load if we already have access to setupPremiumComponentHandlers
+    if (typeof window.setupPremiumComponentHandlers === 'function') {
+        return;
+    }
+    
+    console.log('💾 Attempting to load premium-access-control.js...');
+    
+    // Check if the script is already loaded
+    const existingScript = document.querySelector('script[src*="premium-access-control.js"]');
+    if (existingScript) {
+        console.log('ℹ️ premium-access-control.js is already loaded, but functions not available');
+        return;
+    }
+    
+    // Try to determine the plugin URL
+    const pluginUrl = window.MediaKitBuilder?.config?.pluginUrl || '';
+    
+    if (!pluginUrl) {
+        console.warn('⚠️ Cannot load premium-access-control.js: Plugin URL not available');
+        return;
+    }
+    
+    // Create and add script
+    const script = document.createElement('script');
+    script.src = `${pluginUrl}/assets/js/premium-access-control.js`;
+    script.async = true;
+    script.onload = function() {
+        console.log('✅ premium-access-control.js loaded successfully');
+        setTimeout(() => {
+            if (typeof window.setupPremiumComponentHandlers === 'function') {
+                window.setupPremiumComponentHandlers();
+            }
+        }, 200);
+    };
+    script.onerror = function() {
+        console.error('❌ Failed to load premium-access-control.js');
+    };
+    
+    document.head.appendChild(script);
+}
+
+// Make initializePremiumHandlers globally available for debugging and external access
 window.initializePremiumHandlers = initializePremiumHandlers;
 
 function initializeBuilder() {
     console.log('Initializing Media Kit Builder v2.0');
     console.log('Config:', config);
+    
+    // Initialize premium handlers EARLY in the process
+    // This ensures access control is set up before component rendering
+    initializePremiumHandlers();
     
     setupTabs();
     setupPreviewToggle();
@@ -99,27 +224,23 @@ function initializeBuilder() {
     setupKeyboardShortcuts();
     setupSectionManagement();
     
-    // Initialize premium handlers after other setup is complete
-    setTimeout(() => {
-        if (typeof window.premiumAccess !== 'undefined' && window.premiumAccess.initialized) {
-            console.log('✅ Premium access control already initialized');
-            if (typeof window.setupPremiumComponentHandlers === 'function') {
-                window.setupPremiumComponentHandlers();
-            }
-        } else if (typeof initializePremiumAccess === 'function') {
-            console.log('🔄 Initializing premium access control system...');
-            initializePremiumAccess();
-        } else {
-            console.log('⚠️ Premium access control system not available');
-        }
-    }, 300);
-    
     // Load data
     if (config.isNew) {
         loadDefaultData();
     } else {
         loadMediaKitData();
     }
+    
+    // Ensure premium handlers are set up again after data is loaded
+    // This catches any components that were rendered during data loading
+    setTimeout(() => {
+        console.log('🔄 Running final premium handler setup check...');
+        if (typeof window.setupPremiumComponentHandlers === 'function') {
+            window.setupPremiumComponentHandlers();
+        } else if (typeof window.reinitializePremiumHandlers === 'function') {
+            window.reinitializePremiumHandlers();
+        }
+    }, 1000);
 }
 
 // Tab switching functionality
@@ -1007,20 +1128,28 @@ function generateSectionId() {
  */
 function save() {
     console.log('💾 Saving media kit...');
+    updateSaveStatus('Saving');
     showLoading('Saving your media kit...');
     
-    // Get current configuration from correct source
+    // Get current configuration - use cached reference to avoid using wrong variable in closure
     const mediaKitConfig = window.MediaKitBuilder?.config || config;
     
     // Determine if this is a new kit or existing kit
     const isNew = mediaKitConfig.isNew || !mediaKitConfig.entryKey;
     
+    console.log('📊 Save operation:', {
+        isNew: isNew, 
+        entryKey: mediaKitConfig.entryKey, 
+        userId: mediaKitConfig.userId,
+        accessTier: mediaKitConfig.accessTier
+    });
+    
     // Choose appropriate action based on whether this is a new kit or existing one
     const action = isNew ? 'create_media_kit' : 'update_media_kit';
     
     // Collect current data from the builder
-    const currentData = collectCurrentData();
-    collectSectionsData(); // Make sure sections data is up to date
+    const legacyData = collectCurrentData(); // For backward compatibility
+    const sectionData = collectSectionsData(); // Get modern section-based data
     
     // Session ID for guest users - GENERATE IF MISSING
     let sessionId = localStorage.getItem('guestify_session_id');
@@ -1028,56 +1157,49 @@ function save() {
         sessionId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('guestify_session_id', sessionId);
         console.log('🆕 Generated new session ID:', sessionId);
+    } else {
+        console.log('🔑 Using existing session ID:', sessionId);
     }
     
-    let saveData;
+    // Prepare save data in a format the server understands
+    const saveData = {
+        action: action,
+        nonce: mediaKitConfig.nonce,
+        kit_data: JSON.stringify({
+            theme: sectionData.theme || {},
+            content: legacyData,
+            components: sectionData.components || {},
+            sections: sectionData.sections || [],
+            metadata: {
+                version: '2.0',
+                legacyData: legacyData
+            }
+        }),
+        session_id: sessionId
+    };
     
+    // For existing kits, include the entry key
+    if (!isNew) {
+        saveData.entry_key = mediaKitConfig.entryKey;
+        console.log('📝 Updating existing media kit:', mediaKitConfig.entryKey);
+    }
+    
+    // For new kits, include user ID and access tier
     if (isNew) {
-        // CREATE new media kit
-        saveData = {
-            action: action,
-            user_id: mediaKitConfig.userId || 0,
-            access_tier: mediaKitConfig.accessTier || 'guest',
-            kit_data: JSON.stringify({
-                theme: mediaKitData.theme || {},
-                content: currentData,
-                components: mediaKitData.components || {},
-                sections: mediaKitData.sections || [],
-                metadata: {
-                    version: '2.0',
-                    legacyData: currentData
-                }
-            }),
-            nonce: mediaKitConfig.nonce,
-            session_id: sessionId
-        };
-        console.log('🆕 Creating new media kit...');
-    } else {
-        // UPDATE existing media kit
-        saveData = {
-            action: action,
-            entry_key: mediaKitConfig.entryKey,
-            kit_data: JSON.stringify({
-                theme: mediaKitData.theme || {},
-                content: currentData,
-                components: mediaKitData.components || {},
-                sections: mediaKitData.sections || [],
-                metadata: {
-                    version: '2.0',
-                    legacyData: currentData
-                }
-            }),
-            nonce: mediaKitConfig.nonce,
-            session_id: sessionId
-        };
-        console.log('🔄 Updating existing media kit:', mediaKitConfig.entryKey);
+        saveData.user_id = mediaKitConfig.userId || 0;
+        saveData.access_tier = mediaKitConfig.accessTier || 'guest';
+        console.log('🆕 Creating new media kit');
     }
     
     // Log the parameters being sent
     console.log('📤 Save data prepared:', action, Object.keys(saveData));
     
+    // Get the correct AJAX URL
+    const ajaxUrl = mediaKitConfig.ajaxUrl || window.ajaxurl || '/wp-admin/admin-ajax.php';
+    console.log('📮 Using AJAX URL:', ajaxUrl);
+    
     // Send data to server using fetch API
-    return fetch(mediaKitConfig.ajaxUrl || window.ajaxurl || '/wp-admin/admin-ajax.php', {
+    return fetch(ajaxUrl, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -1106,37 +1228,72 @@ function save() {
                 
                 if (newEntryKey) {
                     // Update our config
+                    mediaKitConfig.entryKey = newEntryKey;
+                    mediaKitConfig.isNew = false;
+                    
+                    // Also update global references
                     config.entryKey = newEntryKey;
                     config.isNew = false;
+                    
                     if (window.MediaKitBuilder && window.MediaKitBuilder.config) {
                         window.MediaKitBuilder.config.entryKey = newEntryKey;
                         window.MediaKitBuilder.config.isNew = false;
                     }
-                    console.log('✅ New media kit created with ID:', newEntryKey);
                     
-                    // Update URL if possible without reload
-                    if (history && history.pushState) {
-                        const newUrl = window.location.pathname.replace('/new', '/' + newEntryKey);
-                        history.pushState({}, '', newUrl);
+                    console.log('🆕 New media kit created with ID:', newEntryKey);
+                    
+                    // Update URL to include the new entry key
+                    if (history && history.replaceState) {
+                        // Handle different URL formats
+                        if (window.location.pathname.includes('/media-kit-builder/')) {
+                            // New URL format
+                            const newUrl = window.location.origin + '/media-kit-builder/' + newEntryKey;
+                            history.replaceState(null, '', newUrl);
+                        } else if (window.location.pathname.includes('/new')) {
+                            // Handle '/new' path format
+                            const newUrl = window.location.pathname.replace('/new', '/' + newEntryKey);
+                            history.replaceState(null, '', newUrl);
+                        } else {
+                            // Legacy URL format with query params
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('entry_key', newEntryKey);
+                            history.replaceState(null, '', url.toString());
+                        }
                     }
+                    
+                    // Show success message for new kits
+                    showSuccessMessage('Media kit created successfully!');
                 }
+            } else {
+                // Show success message for updates
+                showSuccessMessage('Media kit saved successfully!');
             }
             
+            // Update save status
             updateSaveStatus('Saved');
             markClean();
+            
             return result;
         } else {
-            const errorMsg = result.data || 'Save failed';
+            // Extract error message properly handling both formats
+            let errorMsg = 'Save failed';
+            if (result.data && typeof result.data === 'object' && result.data.message) {
+                errorMsg = result.data.message;
+            } else if (result.data) {
+                errorMsg = result.data;
+            }
+            
             console.error('❌ Save failed:', errorMsg);
-            showErrorMessage('Save failed: ' + errorMsg);
+            showErrorMessage('ERROR: ' + errorMsg);
+            updateSaveStatus('Failed');
             throw new Error(errorMsg);
         }
     })
     .catch(error => {
         hideLoading();
-        console.error('❌ Save failed:', error.message);
+        console.error('💥 Save error:', error.message);
+        showErrorMessage('ERROR: Save failed - ' + error.message);
         updateSaveStatus('Failed');
-        showErrorMessage('Failed to save media kit: ' + error.message);
         throw error;
     });
 }
@@ -1190,16 +1347,64 @@ function addComponentToZone(componentType, zone) {
         
         // Select the newly added element
         selectElement(newElement);
+        
+        // Dispatch event for component addition - used for premium handler integration
+        const event = new CustomEvent('componentAdded', { 
+            detail: { componentType: componentType, element: newElement }
+        });
+        document.dispatchEvent(event);
     }
     
     // Re-initialize premium handlers after adding new components
+    // First try using the global function directly
     if (typeof window.setupPremiumComponentHandlers === 'function') {
+        console.log('🔒 Re-initializing premium handlers after component addition');
         setTimeout(() => {
             window.setupPremiumComponentHandlers();
         }, 100);
+    } else if (typeof window.reinitializePremiumHandlers === 'function') {
+        // Fallback to the secondary function if available
+        console.log('🔒 Using reinitializePremiumHandlers function');
+        window.reinitializePremiumHandlers();
+    } else {
+        // Last resort - try to manually import the premium access control script
+        console.warn('⚠️ Premium component handlers not available - attempting to load');
+        loadPremiumAccessControlScript();
     }
     
     console.log(`Added ${componentType} component`);
+}
+
+/**
+ * Helper function to load premium access control script if not already loaded
+ */
+function loadPremiumAccessControlScript() {
+    if (document.querySelector('script[src*="premium-access-control.js"]')) {
+        console.log('Premium access control script already exists in DOM');
+        return;
+    }
+    
+    const pluginUrl = window.MediaKitBuilder?.config?.pluginUrl || '';
+    if (!pluginUrl) {
+        console.warn('Cannot load premium access control: Plugin URL not available');
+        return;
+    }
+    
+    const script = document.createElement('script');
+    script.src = `${pluginUrl}assets/js/premium-access-control.js`;
+    script.async = true;
+    script.onload = function() {
+        console.log('Premium access control script loaded successfully');
+        setTimeout(() => {
+            if (typeof window.setupPremiumComponentHandlers === 'function') {
+                window.setupPremiumComponentHandlers();
+            } else if (typeof window.initializePremiumAccess === 'function') {
+                window.initializePremiumAccess();
+            }
+        }, 200);
+    };
+    
+    document.head.appendChild(script);
 }
 
 function getComponentTemplate(componentType) {
@@ -1533,8 +1738,17 @@ function hideLoading() {
     isLoading = false;
 }
 
-function showUpgradePrompt() {
-    alert('This is a premium component. Upgrade to Pro to unlock advanced features!');
+function showUpgradePrompt(featureName = 'premium feature') {
+    // Try to use the premium access system's upgrade prompt if available
+    if (typeof window.showUpgradePrompt === 'function') {
+        window.showUpgradePrompt(featureName);
+    } else if (typeof window.premiumAccess !== 'undefined' && 
+               typeof window.premiumAccess.showUpgradePrompt === 'function') {
+        window.premiumAccess.showUpgradePrompt(featureName);
+    } else {
+        // Fallback to basic alert
+        alert(`${featureName} is a premium component. Upgrade to Pro to unlock advanced features!`);
+    }
 }
 
 function isValidColor(color) {
@@ -2195,6 +2409,19 @@ function addSection(type = 'content', layout = 'full-width', afterSectionId = nu
     // Setup event listeners
     setupSectionEventListeners();
     setupDragAndDrop();
+    
+    // Trigger premium component handler update for new sections
+    const event = new CustomEvent('sectionAdded', { 
+        detail: { sectionId: sectionId, type: type, layout: layout }
+    });
+    document.dispatchEvent(event);
+    
+    // Reinitialize premium handlers after new section added
+    if (typeof window.setupPremiumComponentHandlers === 'function') {
+        setTimeout(() => {
+            window.setupPremiumComponentHandlers();
+        }, 100);
+    }
     
     // Save state for undo
     saveCurrentState();

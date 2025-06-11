@@ -34,12 +34,6 @@ class BuilderAjax {
         add_action('wp_ajax_mkb_save_media_kit', [$this, 'save_media_kit']);
         add_action('wp_ajax_nopriv_mkb_save_media_kit', [$this, 'save_media_kit']);
         
-        // Add explicit create/update endpoints for frontend compatibility
-        add_action('wp_ajax_create_media_kit', [$this, 'create_media_kit']);
-        add_action('wp_ajax_nopriv_create_media_kit', [$this, 'create_media_kit']);
-        add_action('wp_ajax_update_media_kit', [$this, 'update_media_kit']);
-        add_action('wp_ajax_nopriv_update_media_kit', [$this, 'update_media_kit']);
-        
         // Media kit operations - NEW HANDLERS (for frontend compatibility)
         add_action('wp_ajax_create_media_kit', [$this, 'create_media_kit']);
         add_action('wp_ajax_nopriv_create_media_kit', [$this, 'create_media_kit']);
@@ -285,7 +279,7 @@ class BuilderAjax {
      * Create new media kit - REQUIRED for new save system
      */
     public function create_media_kit() {
-        // Handle both mkb_nonce and media_kit_builder_nonce for compatibility
+        // Allow both nonce types for compatibility
         if (isset($_POST['nonce'])) {
             if (strpos($_POST['nonce'], 'mkb_nonce') !== false) {
                 check_ajax_referer('mkb_nonce', 'nonce');
@@ -293,13 +287,13 @@ class BuilderAjax {
                 check_ajax_referer('media_kit_builder_nonce', 'nonce');
             }
         } else {
-            // Allow without nonce for testing - would remove in production
+            // For testing only - would remove in production
             error_log('⚠️ WARNING: No nonce provided in create_media_kit');
         }
         
         error_log('🆕 CREATE MEDIA KIT endpoint called');
         
-        // Handle both direct data format and kit_data JSON string format
+        // Get data from request - support both formats
         if (isset($_POST['kit_data'])) {
             // New format (single JSON string)
             $user_id = intval($_POST['user_id'] ?? get_current_user_id());
@@ -311,13 +305,13 @@ class BuilderAjax {
             
             // Validate data
             if (empty($kit_data)) {
-                wp_send_json_error('No data provided');
+                wp_send_json_error(['message' => 'No data provided']);
                 return;
             }
             
             $parsed_data = json_decode($kit_data, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                wp_send_json_error('Invalid JSON data: ' . json_last_error_msg());
+                wp_send_json_error(['message' => 'Invalid JSON data: ' . json_last_error_msg()]);
                 return;
             }
             
@@ -400,17 +394,21 @@ class BuilderAjax {
                 throw new \Exception('Failed to create post: ' . $post_id->get_error_message());
             }
             
-            error_log('✅ Created media kit with ID: ' . $post_id);
+            // Generate a unique entry key for compatibility
+            $entry_key = 'mk_' . time() . '_' . wp_generate_password(8, false);
+            update_post_meta($post_id, '_mkb_entry_key', $entry_key);
+            
+            error_log('✅ Created media kit with ID: ' . $post_id . ', entry_key: ' . $entry_key);
             
             wp_send_json_success([
                 'kit_id' => $post_id,
-                'entry_key' => $post_id, // For compatibility
+                'entry_key' => $entry_key, // Return the unique entry key
                 'message' => 'Media kit created successfully'
             ]);
             
         } catch (\Exception $e) {
             error_log('❌ Create failed: ' . $e->getMessage());
-            wp_send_json_error($e->getMessage());
+            wp_send_json_error(['message' => $e->getMessage()]);
         }
     }
     
@@ -655,120 +653,7 @@ class BuilderAjax {
         }
     }
     
-    /**
-     * Update an existing media kit
-     */
-    public function update_media_kit() {
-        // Allow both nonce types
-        if (isset($_POST['nonce'])) {
-            if (strpos($_POST['nonce'], 'mkb_nonce') !== false) {
-                check_ajax_referer('mkb_nonce', 'nonce');
-            } else {
-                check_ajax_referer('media_kit_builder_nonce', 'nonce');
-            }
-        }
-        
-        error_log('📝 UPDATE MEDIA KIT endpoint called');
-        
-        // Get request data
-        $entry_key = sanitize_text_field($_POST['entry_key'] ?? '');
-        $kit_data = isset($_POST['kit_data']) ? wp_unslash($_POST['kit_data']) : '';
-        $session_id = sanitize_text_field($_POST['session_id'] ?? '');
-        
-        if (empty($entry_key)) {
-            error_log('❌ UPDATE ERROR: No entry key provided');
-            wp_send_json_error('Missing entry key');
-            return;
-        }
-        
-        if (empty($kit_data)) {
-            error_log('❌ UPDATE ERROR: No kit data provided');
-            wp_send_json_error('Missing kit data');
-            return;
-        }
-        
-        // Validate JSON data
-        $parsed_data = json_decode($kit_data, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            error_log('❌ Invalid JSON data: ' . json_last_error_msg());
-            wp_send_json_error('Invalid JSON data format');
-            return;
-        }
-        
-        try {
-            // Handle guest updates
-            if (strpos($entry_key, 'guest_') === 0) {
-                if (empty($session_id)) {
-                    $session_id = $entry_key;
-                }
-                
-                $result = $this->session_manager->save_guest_media_kit($session_id, $parsed_data);
-                
-                wp_send_json_success([
-                    'message' => 'Guest media kit updated successfully',
-                    'entry_key' => $entry_key
-                ]);
-                return;
-            }
-            
-            // Handle user post updates
-            if (strpos($entry_key, 'mk_') === 0) {
-                // Look up post by entry key metadata
-                global $wpdb;
-                $post_id = $wpdb->get_var($wpdb->prepare(
-                    "SELECT post_id FROM $wpdb->postmeta WHERE meta_key = '_mkb_entry_key' AND meta_value = %s LIMIT 1",
-                    $entry_key
-                ));
-                
-                if (!$post_id) {
-                    // Try direct ID instead
-                    $post_id = intval($entry_key);
-                }
-            } else {
-                // Assume entry_key is a post ID
-                $post_id = intval($entry_key);
-            }
-            
-            $post = get_post($post_id);
-            
-            if (!$post || $post->post_type !== 'media_kit') {
-                error_log('❌ Media kit post not found: ' . $post_id);
-                throw new \Exception('Media kit not found');
-            }
-            
-            if (!current_user_can('edit_post', $post_id)) {
-                error_log('❌ Permission denied for user ' . get_current_user_id());
-                throw new \Exception('Permission denied');
-            }
-            
-            // Update post meta with kit data
-            update_post_meta($post_id, '_mkb_theme', wp_json_encode($parsed_data['theme'] ?? ['id' => 'blue']));
-            update_post_meta($post_id, '_mkb_components', wp_json_encode($parsed_data['components'] ?? []));
-            update_post_meta($post_id, '_mkb_sections', wp_json_encode($parsed_data['sections'] ?? []));
-            update_post_meta($post_id, '_mkb_metadata', wp_json_encode($parsed_data['metadata'] ?? []));
-            update_post_meta($post_id, '_mkb_updated_at', current_time('mysql'));
-            
-            // Update post title if possible
-            if (isset($parsed_data['components']) && !empty($parsed_data['components'])) {
-                $new_title = $this->get_kit_title($parsed_data['components']);
-                wp_update_post([
-                    'ID' => $post_id,
-                    'post_title' => $new_title
-                ]);
-            }
-            
-            error_log('✅ Media kit updated successfully: ' . $post_id);
-            
-            wp_send_json_success([
-                'message' => 'Media kit updated successfully',
-                'entry_key' => $entry_key
-            ]);
-            
-        } catch (\Exception $e) {
-            error_log('❌ Update error: ' . $e->getMessage());
-            wp_send_json_error($e->getMessage());
-        }
-    }
+    // Duplicate update_media_kit method removed - using the implementation above
     
     /**
      * Export to PDF
@@ -1025,98 +910,7 @@ class BuilderAjax {
     /**
      * Get or create public hash for kit
      */
-    /**
-     * Create a new media kit (Direct AJAX handler for WordPress integration)
-     */
-    public function create_media_kit() {
-        // Allow both nonce types
-        if (isset($_POST['nonce'])) {
-            if (strpos($_POST['nonce'], 'mkb_nonce') !== false) {
-                check_ajax_referer('mkb_nonce', 'nonce');
-            } else {
-                check_ajax_referer('media_kit_builder_nonce', 'nonce');
-            }
-        }
-        
-        error_log('🆕 CREATE MEDIA KIT endpoint called');
-        
-        // Get data from request
-        $user_id = intval($_POST['user_id'] ?? get_current_user_id());
-        $access_tier = sanitize_text_field($_POST['access_tier'] ?? 'free');
-        $kit_data = isset($_POST['kit_data']) ? wp_unslash($_POST['kit_data']) : '{}';
-        $session_id = sanitize_text_field($_POST['session_id'] ?? '');
-        
-        // Validate JSON data
-        $parsed_data = json_decode($kit_data, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            error_log('❌ Invalid JSON data in create_media_kit: ' . json_last_error_msg());
-            wp_send_json_error('Invalid JSON data format');
-            return;
-        }
-        
-        error_log('📊 Creating media kit for user: ' . $user_id . ', tier: ' . $access_tier);
-        
-        try {
-            // For guest users
-            if (!is_user_logged_in() || $access_tier === 'guest') {
-                if (empty($session_id)) {
-                    $session_id = 'guest_' . time() . '_' . wp_generate_password(6, false);
-                    error_log('🆕 Generated guest session ID: ' . $session_id);
-                }
-                
-                $result = $this->session_manager->save_guest_media_kit($session_id, $parsed_data);
-                
-                wp_send_json_success([
-                    'kit_id' => $result['kit_id'],
-                    'entry_key' => $result['kit_id'], // For compatibility
-                    'message' => 'Guest media kit created successfully',
-                    'session_id' => $session_id
-                ]);
-                return;
-            }
-            
-            // For logged-in users - create WordPress post
-            $post_data = [
-                'post_type' => 'media_kit',
-                'post_status' => 'publish',
-                'post_author' => $user_id,
-                'post_title' => $this->get_kit_title($parsed_data['components'] ?? []),
-                'post_content' => '',
-                'meta_input' => [
-                    '_mkb_version' => '2.0',
-                    '_mkb_theme' => wp_json_encode($parsed_data['theme'] ?? ['id' => 'modern-blue']),
-                    '_mkb_components' => wp_json_encode($parsed_data['components'] ?? []),
-                    '_mkb_sections' => wp_json_encode($parsed_data['sections'] ?? []),
-                    '_mkb_metadata' => wp_json_encode($parsed_data['metadata'] ?? []),
-                    '_mkb_created_at' => current_time('mysql'),
-                    '_mkb_updated_at' => current_time('mysql')
-                ]
-            ];
-            
-            $post_id = wp_insert_post($post_data);
-            
-            if (is_wp_error($post_id)) {
-                error_log('❌ Failed to create media kit post: ' . $post_id->get_error_message());
-                throw new \Exception('Failed to create post: ' . $post_id->get_error_message());
-            }
-            
-            error_log('✅ Created new media kit with ID: ' . $post_id);
-            
-            // Create unique entry key for backward compatibility
-            $entry_key = 'mk_' . time() . '_' . wp_generate_password(8, false);
-            update_post_meta($post_id, '_mkb_entry_key', $entry_key);
-            
-            wp_send_json_success([
-                'kit_id' => $post_id,
-                'entry_key' => $entry_key,
-                'message' => 'Media kit created successfully'
-            ]);
-            
-        } catch (\Exception $e) {
-            error_log('❌ Error in create_media_kit: ' . $e->getMessage());
-            wp_send_json_error($e->getMessage());
-        }
-    }
+    // Duplicate create_media_kit method removed - using the implementation above
     
     private function get_or_create_public_hash($kit_id) {
         $hash = '';

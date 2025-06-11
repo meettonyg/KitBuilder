@@ -660,6 +660,9 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="<?php echo plugin_dir_url(dirname(__FILE__)); ?>assets/js/template-workflow-test.js"></script>
 <script src="<?php echo plugin_dir_url(dirname(__FILE__)); ?>assets/js/premium-access-control.js"></script>
 
+<!-- Fixed Premium Components Handler -->
+<script src="<?php echo plugin_dir_url(dirname(__FILE__)); ?>assets/js/fixed-premium-component-handler.js"></script>
+
 <!-- Error checking -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -673,6 +676,15 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('✅ Template system loaded successfully');
         } else {
             console.error('❌ Template system failed to load');
+        }
+        
+        // Use fixed premium component handler if available
+        if (typeof window.fixedSetupPremiumComponentHandlers === 'function') {
+            console.log('🔧 Using fixed premium component handler');
+            // Override the default function with our fixed version
+            window.setupPremiumComponentHandlers = window.fixedSetupPremiumComponentHandlers;
+            // Run the fixed handler
+            window.setupPremiumComponentHandlers();
         }
     }, 1000);
 });

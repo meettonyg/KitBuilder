@@ -367,7 +367,7 @@ async function insertSectionTemplate(templateId) {
         if (!hasPremiumAccess) {
             console.log('🔒 Premium template access denied');
             if (window.premiumAccess && typeof window.premiumAccess.showUpgradePrompt === 'function') {
-                window.premiumAccess.showUpgradePrompt('premium-template');
+                window.premiumAccess.showUpgradePrompt('premium-template', template.name || 'Premium Template');
             } else {
                 alert('This is a premium template. Please upgrade to access it.');
             }

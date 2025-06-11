@@ -226,19 +226,25 @@ function addPremiumIndicators() {
 
 /**
  * Restrict premium components based on user tier - SIMPLIFIED VERSION
- * This function only adds visual restrictions, not event handlers
+ * This function adds visual restrictions AND ensures handlers are attached
  */
 function restrictPremiumComponents() {
     if (!hasAccess('premiumComponents')) {
         const premiumComponents = document.querySelectorAll('.component-item.premium');
         premiumComponents.forEach(component => {
-            // Only add visual restrictions, handlers will be added by setupPremiumComponentHandlers
+            // Apply visual restrictions
             component.setAttribute('draggable', 'false');
             component.classList.add('restricted');
         });
         
         console.log('🚫 Applied visual restrictions to premium components');
     }
+    
+    // Always call setupPremiumComponentHandlers after visual restrictions
+    // This ensures the handlers are properly attached regardless of access level
+    setTimeout(() => {
+        setupPremiumComponentHandlers();
+    }, 50);
 }
 
 /**
@@ -249,7 +255,7 @@ function setupPremiumComponentHandlers() {
     // Prevent recursive calls
     if (window.premiumAccess.handlerSetupInProgress) {
         console.log('🔄 Handler setup already in progress, skipping...');
-        return;
+        return false;
     }
 
     window.premiumAccess.handlerSetupInProgress = true;
@@ -261,86 +267,135 @@ function setupPremiumComponentHandlers() {
         window.premiumAccess.observerActive = false;
     }
 
-    // Get ALL premium components (not just ones without handlers)
-    const premiumComponents = document.querySelectorAll('.component-item.premium');
-    console.log(`Found ${premiumComponents.length} premium components to set up`);
+    try {
+        // Get ALL premium components (not just ones without handlers)
+        const premiumComponents = document.querySelectorAll('.component-item.premium');
+        console.log(`Found ${premiumComponents.length} premium components to set up`);
 
-    premiumComponents.forEach((component, index) => {
-        console.log(`Setting up handler for premium component ${index + 1}`);
-        
-        // Remove any existing premium handlers to prevent duplicates
-        if (component.premiumClickHandler) {
-            component.removeEventListener('click', component.premiumClickHandler);
-            component.premiumClickHandler = null;
-        }
-        if (component.premiumDragHandler) {
-            component.removeEventListener('dragstart', component.premiumDragHandler);
-            component.premiumDragHandler = null;
-        }
-        
-        // Mark this component as having a handler
-        component.setAttribute('data-handler-attached', 'true');
-        
-        // Create new click handler with proper context
-        const clickHandler = function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('🔒 Premium component clicked, checking access...');
+        premiumComponents.forEach((component, index) => {
+            console.log(`Setting up handler for premium component ${index + 1}`);
             
-            if (!hasAccess('premiumComponents')) {
-                // Use e.currentTarget (the element the event listener is attached to)
-                // or fallback to e.target.closest() for nested clicks
-                const componentElement = e.currentTarget || e.target.closest('.component-item');
-                const componentName = componentElement?.querySelector('.component-name')?.textContent || 'Premium Component';
-                
-                console.log(`🚫 Access denied for: ${componentName}`);
-                showUpgradePrompt(`${componentName} is a premium feature`, componentName);
-                return false;
+            // Remove any existing premium handlers to prevent duplicates
+            if (component.premiumClickHandler) {
+                component.removeEventListener('click', component.premiumClickHandler);
+                component.premiumClickHandler = null;
+            }
+            if (component.premiumDragHandler) {
+                component.removeEventListener('dragstart', component.premiumDragHandler);
+                component.premiumDragHandler = null;
             }
             
-            console.log('✅ Premium component access granted');
-            // User has access, allow normal component addition
-            return true;
-        };
-        
-        // Create new drag handler with proper context
-        const dragHandler = function(e) {
+            // Mark this component as having a handler
+            component.setAttribute('data-handler-attached', 'true');
+            
+            // Create new click handler with proper context
+            const clickHandler = function(e) {
+                // Always stop propagation to prevent double-handling
+                e.stopPropagation();
+                
+                // Immediate access check
+                if (!hasAccess('premiumComponents')) {
+                    // Prevent default only after we know access is denied
+                    e.preventDefault();
+                    console.log('🔒 Premium component clicked, access denied');
+                    
+                    // Get component name for better UX
+                    const componentElement = e.currentTarget || e.target.closest('.component-item');
+                    const componentName = componentElement?.querySelector('.component-name')?.textContent || 'Premium Component';
+                    
+                    console.log(`🚫 Access denied for: ${componentName}`);
+                    showUpgradePrompt(`${componentName} is a premium feature`, componentName);
+                    return false;
+                }
+                
+                console.log('✅ Premium component access granted');
+                // Allow click to continue normally by NOT preventing default
+                return true;
+            };
+            
+            // Create new drag handler with proper context
+            const dragHandler = function(e) {
+                if (!hasAccess('premiumComponents')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🚫 Drag prevented for premium component');
+                    
+                    const componentElement = e.currentTarget || e.target.closest('.component-item');
+                    const componentName = componentElement?.querySelector('.component-name')?.textContent || 'Premium Component';
+                    
+                    showUpgradePrompt(`${componentName} is a premium feature`);
+                    return false;
+                }
+            };
+
+            // Store handler references and attach events
+            component.premiumClickHandler = clickHandler;
+            component.premiumDragHandler = dragHandler;
+            
+            // Use capture phase to ensure our handler runs first
+            component.addEventListener('click', clickHandler, true);
+            component.addEventListener('dragstart', dragHandler, true);
+            
+            // Apply or remove restrictions based on access
             if (!hasAccess('premiumComponents')) {
-                e.preventDefault();
-                console.log('🚫 Drag prevented for premium component');
-                
-                const componentElement = e.currentTarget || e.target.closest('.component-item');
-                const componentName = componentElement?.querySelector('.component-name')?.textContent || 'Premium Component';
-                
-                showUpgradePrompt(`${componentName} is a premium feature`);
-                return false;
+                component.setAttribute('draggable', 'false');
+                component.classList.add('restricted');
+            } else {
+                component.setAttribute('draggable', 'true');
+                component.classList.remove('restricted');
             }
-        };
-
-        // Store handler references and attach events
-        component.premiumClickHandler = clickHandler;
-        component.premiumDragHandler = dragHandler;
+        });
         
-        component.addEventListener('click', clickHandler);
-        component.addEventListener('dragstart', dragHandler);
+        // Also monitor DOM for new component additions
+        setupComponentAddedListener();
         
-        // Apply or remove restrictions based on access
-        if (!hasAccess('premiumComponents')) {
-            component.setAttribute('draggable', 'false');
-            component.classList.add('restricted');
-        } else {
-            component.setAttribute('draggable', 'true');
-            component.classList.remove('restricted');
-        }
-    });
+        console.log('✅ Premium component handlers setup completed');
+        
+        // Return true to indicate successful setup
+        return true;
+    } catch (error) {
+        console.error('Error in setupPremiumComponentHandlers:', error);
+        return false;
+    } finally {
+        // Re-enable observer after a delay to prevent immediate re-triggering
+        setTimeout(() => {
+            window.premiumAccess.handlerSetupInProgress = false;
+            reconnectObserver();
+        }, 100);
+    }
+}
 
-    console.log('✅ Premium component handlers setup completed');
+/**
+ * Sets up listener for component addition events
+ */
+function setupComponentAddedListener() {
+    // Only setup once
+    if (window.premiumComponentAddedListenerAttached) {
+        return;
+    }
     
-    // Re-enable observer after a delay to prevent immediate re-triggering
-    setTimeout(() => {
-        window.premiumAccess.handlerSetupInProgress = false;
-        reconnectObserver();
-    }, 100);
+    console.log('Setting up component added event listener');
+    
+    // Listen for both component and section addition
+    document.addEventListener('componentAdded', function(e) {
+        console.log('componentAdded event received, re-applying premium handlers');
+        setTimeout(() => {
+            if (!window.premiumAccess.handlerSetupInProgress) {
+                setupPremiumComponentHandlers();
+            }
+        }, 50);
+    });
+    
+    document.addEventListener('sectionAdded', function(e) {
+        console.log('sectionAdded event received, re-applying premium handlers');
+        setTimeout(() => {
+            if (!window.premiumAccess.handlerSetupInProgress) {
+                setupPremiumComponentHandlers();
+            }
+        }, 50);
+    });
+    
+    window.premiumComponentAddedListenerAttached = true;
 }
 
 /**
@@ -1098,6 +1153,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // Small delay to ensure MediaKitBuilder config is loaded
     setTimeout(() => {
         initializePremiumAccess();
+        
+        // Setup observer for dynamically added premium components
+        if (typeof setupObserver === 'function') {
+            setupObserver();
+            console.log('🔍 Premium component observer setup complete');
+        }
+        
+        // Initial setup of premium component handlers
+        setTimeout(() => {
+            if (typeof setupPremiumComponentHandlers === 'function') {
+                setupPremiumComponentHandlers();
+                console.log('🔒 Initial premium component handlers setup complete');
+            }
+        }, 200);
     }, 100);
 });
 
