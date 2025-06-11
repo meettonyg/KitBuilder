@@ -78,6 +78,13 @@ class MKB_Session_Manager {
         
         add_action('wp_ajax_mkb_migrate_guest_session', array($this, 'ajax_migrate_guest_session'));
         
+        // REST API endpoints
+        add_action('rest_api_init', array($this, 'register_rest_endpoints'));
+        
+        // User login/registration hooks
+        add_action('wp_login', array($this, 'handle_user_login'), 10, 2);
+        add_action('user_register', array($this, 'handle_user_registration'));
+        
         // Cleanup hook
         add_action('mkb_cleanup_guest_sessions', array($this, 'cleanup_expired_sessions'));
         
@@ -85,6 +92,49 @@ class MKB_Session_Manager {
         if (!wp_next_scheduled('mkb_cleanup_guest_sessions')) {
             wp_schedule_event(time(), 'hourly', 'mkb_cleanup_guest_sessions');
         }
+    }
+    
+    /**
+     * Register REST API endpoints
+     */
+    public function register_rest_endpoints() {
+        register_rest_route('media-kit/v1', '/sessions', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'rest_create_session'),
+            'permission_callback' => '__return_true'
+        ));
+        
+        register_rest_route('media-kit/v1', '/sessions/(?P<session_id>[a-zA-Z0-9_-]+)', array(
+            'methods' => 'GET',
+            'callback' => array($this, 'rest_get_session'),
+            'permission_callback' => '__return_true',
+            'args' => array(
+                'session_id' => array(
+                    'required' => true,
+                    'sanitize_callback' => 'sanitize_text_field',
+                )
+            )
+        ));
+        
+        register_rest_route('media-kit/v1', '/sessions/(?P<session_id>[a-zA-Z0-9_-]+)', array(
+            'methods' => 'PUT',
+            'callback' => array($this, 'rest_update_session'),
+            'permission_callback' => '__return_true',
+            'args' => array(
+                'session_id' => array(
+                    'required' => true,
+                    'sanitize_callback' => 'sanitize_text_field',
+                )
+            )
+        ));
+        
+        register_rest_route('media-kit/v1', '/sessions/migrate', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'rest_migrate_session'),
+            'permission_callback' => function() {
+                return is_user_logged_in();
+            }
+        ));
     }
     
     /**
@@ -302,6 +352,43 @@ class MKB_Session_Manager {
     }
     
     /**
+     * Handle user login
+     * 
+     * @param string $user_login
+     * @param WP_User $user
+     */
+    public function handle_user_login($user_login, $user) {
+        // Get current guest session
+        $session_id = $this->get_session_from_cookie();
+        
+        if ($session_id) {
+            // Check if session is valid
+            if ($this->is_valid_session($session_id)) {
+                // Migrate session to user
+                $this->migrate_guest_session($session_id, $user->ID);
+            }
+        }
+    }
+    
+    /**
+     * Handle user registration
+     * 
+     * @param int $user_id
+     */
+    public function handle_user_registration($user_id) {
+        // Get current guest session
+        $session_id = $this->get_session_from_cookie();
+        
+        if ($session_id) {
+            // Check if session is valid
+            if ($this->is_valid_session($session_id)) {
+                // Migrate session to user
+                $this->migrate_guest_session($session_id, $user_id);
+            }
+        }
+    }
+    
+    /**
      * Cleanup expired sessions
      */
     public function cleanup_expired_sessions() {
@@ -319,6 +406,154 @@ class MKB_Session_Manager {
         }
         
         return $deleted;
+    }
+    
+    /**
+     * REST API: Create session
+     * 
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function rest_create_session($request) {
+        // Create new guest session
+        $session_id = $this->create_guest_session();
+        
+        if ($session_id) {
+            return new WP_REST_Response(
+                array(
+                    'success' => true,
+                    'session_id' => $session_id,
+                    'expires' => time() + $this->session_duration
+                ),
+                200
+            );
+        } else {
+            return new WP_REST_Response(
+                array(
+                    'success' => false,
+                    'message' => 'Failed to create guest session'
+                ),
+                500
+            );
+        }
+    }
+    
+    /**
+     * REST API: Get session
+     * 
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function rest_get_session($request) {
+        $session_id = $request['session_id'];
+        
+        // Get session data
+        $data = $this->get_guest_data($session_id);
+        
+        if (!empty($data)) {
+            return new WP_REST_Response(
+                array(
+                    'success' => true,
+                    'data' => $data
+                ),
+                200
+            );
+        } else {
+            return new WP_REST_Response(
+                array(
+                    'success' => false,
+                    'message' => 'Session not found or expired'
+                ),
+                404
+            );
+        }
+    }
+    
+    /**
+     * REST API: Update session
+     * 
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function rest_update_session($request) {
+        $session_id = $request['session_id'];
+        $data = $request->get_json_params();
+        
+        if (empty($data)) {
+            return new WP_REST_Response(
+                array(
+                    'success' => false,
+                    'message' => 'No data provided'
+                ),
+                400
+            );
+        }
+        
+        // Sanitize data
+        $data = $this->sanitize_guest_data($data);
+        
+        // Save data
+        $result = $this->save_guest_data($session_id, $data);
+        
+        if ($result) {
+            return new WP_REST_Response(
+                array(
+                    'success' => true,
+                    'message' => 'Session data updated successfully'
+                ),
+                200
+            );
+        } else {
+            return new WP_REST_Response(
+                array(
+                    'success' => false,
+                    'message' => 'Failed to update session data'
+                ),
+                500
+            );
+        }
+    }
+    
+    /**
+     * REST API: Migrate session
+     * 
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function rest_migrate_session($request) {
+        if (!is_user_logged_in()) {
+            return new WP_REST_Response(
+                array(
+                    'success' => false,
+                    'message' => 'User not logged in'
+                ),
+                401
+            );
+        }
+        
+        $session_id = $request['session_id'];
+        $user_id = get_current_user_id();
+        
+        // Migrate session
+        $result = $this->migrate_guest_session($session_id, $user_id);
+        
+        if ($result) {
+            return new WP_REST_Response(
+                array(
+                    'success' => true,
+                    'message' => 'Session migrated successfully'
+                ),
+                200
+            );
+        } else {
+            return new WP_REST_Response(
+                array(
+                    'success' => false,
+                    'message' => 'Failed to migrate session'
+                ),
+                500
+            );
+        }
     }
     
     /**
@@ -516,3 +751,6 @@ class MKB_Session_Manager {
         );
     }
 }
+
+// Initialize the session manager
+MKB_Session_Manager::instance();

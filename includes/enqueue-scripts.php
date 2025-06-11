@@ -1,116 +1,225 @@
 <?php
 /**
- * Script and Style Enqueuing
- *
- * @package MediaKitBuilder
+ * Script and Style Enqueuing for Media Kit Builder
  */
 
-defined('ABSPATH') || exit;
+if (!defined('ABSPATH')) {
+    exit; // Exit if accessed directly
+}
 
 /**
- * Register and enqueue all scripts and styles for the Media Kit Builder
+ * Enqueue all scripts and styles for Media Kit Builder
  */
-function mkb_enqueue_builder_assets() {
-    // Only load on builder page
-    if (!is_admin() || !isset($_GET['page']) || $_GET['page'] !== 'media-kit-builder') {
-        return;
-    }
-
-    // Plugin URL
-    $plugin_url = plugin_dir_url(dirname(__FILE__));
+function mkb_enqueue_scripts() {
     $version = defined('MKB_VERSION') ? MKB_VERSION : '1.0.0';
     
-    // STYLES
-    // Admin styles
-    wp_enqueue_style('mkb-admin', $plugin_url . 'assets/css/admin.css', [], $version);
+    // Core styles
+    wp_enqueue_style('mkb-builder', 
+        plugin_dir_url(__FILE__) . '../assets/css/builder.css', 
+        array(), 
+        $version
+    );
     
-    // Builder styles
-    wp_enqueue_style('mkb-builder', $plugin_url . 'assets/css/builder-v2.css', [], $version);
+    // Only load builder-v2.css once, with proper dependencies
+    wp_enqueue_style('mkb-builder-v2', 
+        plugin_dir_url(__FILE__) . '../assets/css/builder-v2.css', 
+        array('mkb-builder'), 
+        $version
+    );
     
-    // Template styles
-    wp_enqueue_style('mkb-templates', $plugin_url . 'assets/css/templates.css', [], $version);
+    // Component-specific styles
+    wp_enqueue_style('mkb-components', 
+        plugin_dir_url(__FILE__) . '../assets/css/components.css', 
+        array('mkb-builder', 'mkb-builder-v2'), 
+        $version
+    );
     
-    // SCRIPTS
-    // Deregister WordPress React to prevent conflicts
-    wp_deregister_script('react');
-    wp_deregister_script('react-dom');
+    // WP Media
+    wp_enqueue_media();
     
-    // Enqueue React (production version)
-    wp_enqueue_script('mkb-react', 'https://unpkg.com/react@18/umd/react.production.min.js', [], '18.2.0', true);
-    wp_enqueue_script('mkb-react-dom', 'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js', ['mkb-react'], '18.2.0', true);
+    // Core scripts
+    // Builder core first (no dependencies)
+    wp_enqueue_script('mkb-core', 
+        plugin_dir_url(__FILE__) . '../assets/js/builder.js', 
+        array('jquery'), 
+        $version, 
+        true
+    );
     
-    // Core libraries
-    wp_enqueue_script('mkb-html2pdf', $plugin_url . 'assets/js/libs/html2pdf.bundle.min.js', [], '0.10.1', true);
+    // WordPress integration next (depends on core)
+    wp_enqueue_script('mkb-wordpress', 
+        plugin_dir_url(__FILE__) . '../assets/js/builder-wordpress.js', 
+        array('jquery', 'mkb-core'), 
+        $version, 
+        true
+    );
     
-    // Debug script - load early for better diagnostics
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        wp_enqueue_script('mkb-debug', $plugin_url . 'assets/js/mkb-debug.js', ['jquery'], $version, true);
-    }
+    // Premium access control (depends on WordPress integration)
+    wp_enqueue_script('mkb-premium-access', 
+        plugin_dir_url(__FILE__) . '../assets/js/premium-access-control.js', 
+        array('jquery', 'mkb-core', 'mkb-wordpress'), 
+        $version, 
+        true
+    );
     
-    // Fixed AJAX functions - load before builder
-    wp_enqueue_script('mkb-ajax-functions', $plugin_url . 'assets/js/ajax-functions.js', ['jquery'], $version, true);
+    // Section templates (depends on premium access)
+    wp_enqueue_script('mkb-section-templates', 
+        plugin_dir_url(__FILE__) . '../assets/js/section-templates.js', 
+        array('jquery', 'mkb-core', 'mkb-wordpress', 'mkb-premium-access'), 
+        $version, 
+        true
+    );
     
-    // Builder core scripts with proper dependencies
-    wp_enqueue_script('mkb-premium-access', $plugin_url . 'assets/js/premium-access-control.js', ['jquery'], $version, true);
-    wp_enqueue_script('mkb-section-templates', $plugin_url . 'assets/js/section-templates.js', ['jquery'], $version, true);
-    wp_enqueue_script('mkb-builder', $plugin_url . 'assets/js/builder-wordpress.js', [
-        'jquery', 
-        'mkb-premium-access', 
-        'mkb-section-templates', 
-        'mkb-html2pdf',
-        'mkb-ajax-functions'
-    ], $version, true);
+    // Components (depends on core)
+    wp_enqueue_script('mkb-components', 
+        plugin_dir_url(__FILE__) . '../assets/js/components.js', 
+        array('jquery', 'mkb-core'), 
+        $version, 
+        true
+    );
     
-    // Localize script data - centralized data bridge between PHP and JS
-    $builder_data = [
-        'ajaxurl' => admin_url('admin-ajax.php'),
+    // Export functionality (depends on WordPress integration)
+    wp_enqueue_script('mkb-export', 
+        plugin_dir_url(__FILE__) . '../assets/js/export.js', 
+        array('jquery', 'mkb-core', 'mkb-wordpress'), 
+        $version, 
+        true
+    );
+    
+    // Pass data to JavaScript
+    wp_localize_script('mkb-wordpress', 'mkbData', array(
+        'ajaxUrl' => admin_url('admin-ajax.php'),
+        'restUrl' => rest_url('media-kit/v1/'),
         'nonce' => wp_create_nonce('media_kit_builder_nonce'),
-        'plugin_url' => $plugin_url,
-        'user_id' => get_current_user_id(),
-        'access_tier' => mkb_get_user_access_tier(),
-        'is_admin' => current_user_can('manage_options'),
-        'templates_endpoint' => rest_url('media-kit/v1/templates'),
-        'rest_nonce' => wp_create_nonce('wp_rest'),
-        'version' => $version,
-        'debug_mode' => defined('WP_DEBUG') && WP_DEBUG
-    ];
-    
-    wp_localize_script('mkb-builder', 'MediaKitBuilderData', $builder_data);
+        'restNonce' => wp_create_nonce('wp_rest'),
+        'userId' => get_current_user_id(),
+        'userCapabilities' => mkb_get_user_capabilities(),
+        'isAdmin' => current_user_can('manage_options'),
+        'accessTier' => mkb_get_user_access_tier(),
+        'pluginUrl' => plugin_dir_url(dirname(__FILE__)),
+        'assetsUrl' => plugin_dir_url(dirname(__FILE__)) . 'assets/',
+        'upgradeUrl' => site_url('/pricing/'),
+        'learnMoreUrl' => site_url('/features/'),
+        'debugMode' => defined('WP_DEBUG') && WP_DEBUG
+    ));
 }
-add_action('admin_enqueue_scripts', 'mkb_enqueue_builder_assets');
+add_action('admin_enqueue_scripts', 'mkb_enqueue_scripts');
 
 /**
- * Get user access tier
+ * Enqueue scripts for the front-end display
+ */
+function mkb_enqueue_frontend_scripts() {
+    $version = defined('MKB_VERSION') ? MKB_VERSION : '1.0.0';
+    
+    // Front-end styles
+    wp_enqueue_style('mkb-frontend', 
+        plugin_dir_url(__FILE__) . '../assets/css/frontend.css', 
+        array(), 
+        $version
+    );
+    
+    // Preview script (minimal)
+    wp_enqueue_script('mkb-preview', 
+        plugin_dir_url(__FILE__) . '../assets/js/preview.js', 
+        array('jquery'), 
+        $version, 
+        true
+    );
+}
+add_action('wp_enqueue_scripts', 'mkb_enqueue_frontend_scripts');
+
+/**
+ * Get user capabilities for Media Kit Builder
  * 
- * @return string User access tier (guest, free, pro, agency, admin)
+ * @return array User capabilities
+ */
+function mkb_get_user_capabilities() {
+    $capabilities = array(
+        'create' => current_user_can('edit_posts'),
+        'edit' => current_user_can('edit_posts'),
+        'delete' => current_user_can('delete_posts'),
+        'publish' => current_user_can('publish_posts'),
+        'admin' => current_user_can('manage_options')
+    );
+    
+    return $capabilities;
+}
+
+/**
+ * Get user access tier from WP Fusion
+ * 
+ * @return string User access tier
  */
 function mkb_get_user_access_tier() {
-    $user_id = get_current_user_id();
-    
-    if (!$user_id) {
-        return 'guest';
-    }
-    
+    // If user is admin, always return admin tier
     if (current_user_can('manage_options')) {
         return 'admin';
     }
     
-    // Check WP Fusion tags if available
+    // Check if WP Fusion is active
     if (function_exists('wp_fusion')) {
-        $user_tags = wp_fusion()->user->get_tags($user_id);
+        // Get user tags
+        $user_tags = wp_fusion()->user->get_tags();
         
-        if (is_array($user_tags)) {
-            // Check for agency tag
-            if (in_array(12345, $user_tags)) { // Replace with actual Agency tag ID
-                return 'agency';
-            }
-            
-            // Check for pro tag
-            if (in_array(67890, $user_tags)) { // Replace with actual Pro tag ID
-                return 'pro';
-            }
+        // Check for agency tag
+        if (is_array($user_tags) && in_array('agency', $user_tags)) {
+            return 'agency';
+        }
+        
+        // Check for pro tag
+        if (is_array($user_tags) && in_array('pro', $user_tags)) {
+            return 'pro';
+        }
+        
+        // Check for free tag
+        if (is_array($user_tags) && in_array('free', $user_tags)) {
+            return 'free';
         }
     }
     
-    return 'free';
+    // Check if user is logged in
+    if (is_user_logged_in()) {
+        return 'free'; // Default for logged-in users
+    }
+    
+    // Default to guest for non-logged-in users
+    return 'guest';
 }
+
+/**
+ * Enqueue admin-specific scripts
+ */
+function mkb_enqueue_admin_scripts($hook) {
+    // Only enqueue on Media Kit Builder admin pages
+    if (strpos($hook, 'media-kit-builder') === false) {
+        return;
+    }
+    
+    $version = defined('MKB_VERSION') ? MKB_VERSION : '1.0.0';
+    
+    // Admin styles
+    wp_enqueue_style('mkb-admin', 
+        plugin_dir_url(__FILE__) . '../assets/css/admin.css', 
+        array(), 
+        $version
+    );
+    
+    // Admin scripts
+    wp_enqueue_script('mkb-admin-js', 
+        plugin_dir_url(__FILE__) . '../assets/js/admin-integration.js', 
+        array('jquery'), 
+        $version, 
+        true
+    );
+    
+    // Debug helper in development mode
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        wp_enqueue_script('mkb-debug', 
+            plugin_dir_url(__FILE__) . '../assets/js/mkb-debug.js', 
+            array('jquery'), 
+            $version, 
+            true
+        );
+    }
+}
+add_action('admin_enqueue_scripts', 'mkb_enqueue_admin_scripts');
