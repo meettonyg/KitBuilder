@@ -47,6 +47,9 @@ class Media_Kit_Builder {
         
         // Setup hooks
         $this->setup_hooks();
+        
+        // Ensure REST API is initialized
+        add_action('rest_api_init', array($this, 'init_rest_api'));
     }
     
     /**
@@ -58,8 +61,8 @@ class Media_Kit_Builder {
             require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'admin/admin.php';
         }
         
-        // Include AJAX handlers
-        require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'ajax-handlers.php';
+        // Include REST API endpoints instead of legacy AJAX handlers
+        require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'includes/core/class-api-endpoints.php';
     }
     
     /**
@@ -240,14 +243,22 @@ class Media_Kit_Builder {
         
         // Pass data to JavaScript
         wp_localize_script('media-kit-builder-wordpress', 'mkbData', array(
-            'ajaxUrl' => admin_url('admin-ajax.php'),
+            // Primary API - REST API
+            'apiType' => 'rest',
             'restUrl' => rest_url('media-kit/v1/'),
-            'nonce' => wp_create_nonce('media_kit_builder_nonce'),
             'restNonce' => wp_create_nonce('wp_rest'),
+            
+            // Legacy AJAX - kept for backward compatibility
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('media_kit_builder_nonce'),
+            
+            // User information
             'userId' => get_current_user_id(),
             'userCapabilities' => $this->get_user_capabilities(),
             'isAdmin' => current_user_can('manage_options'),
             'accessTier' => $this->get_user_access_tier(),
+            
+            // Plugin info
             'pluginUrl' => MEDIA_KIT_BUILDER_PLUGIN_URL,
             'assetsUrl' => MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/',
             'debugMode' => defined('WP_DEBUG') && WP_DEBUG
@@ -332,14 +343,22 @@ class Media_Kit_Builder {
             
             // Pass data to JavaScript
             wp_localize_script('media-kit-builder-wordpress', 'mkbData', array(
-                'ajaxUrl' => admin_url('admin-ajax.php'),
+                // Primary API - REST API
+                'apiType' => 'rest',
                 'restUrl' => rest_url('media-kit/v1/'),
-                'nonce' => wp_create_nonce('media_kit_builder_nonce'),
                 'restNonce' => wp_create_nonce('wp_rest'),
+                
+                // Legacy AJAX - kept for backward compatibility
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('media_kit_builder_nonce'),
+                
+                // User information
                 'userId' => get_current_user_id(),
                 'userCapabilities' => $this->get_user_capabilities(),
                 'isAdmin' => current_user_can('manage_options'),
                 'accessTier' => $this->get_user_access_tier(),
+                
+                // Plugin info
                 'pluginUrl' => MEDIA_KIT_BUILDER_PLUGIN_URL,
                 'assetsUrl' => MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/',
                 'debugMode' => defined('WP_DEBUG') && WP_DEBUG
@@ -492,6 +511,19 @@ class Media_Kit_Builder {
         
         // Return buffered content
         return ob_get_clean();
+    }
+    
+    /**
+     * Initialize REST API
+     */
+    public function init_rest_api() {
+        // Ensure our API class is loaded
+        if (!class_exists('MKB_API_Endpoints')) {
+            require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'includes/core/class-api-endpoints.php';
+            
+            // Initialize the class if not already done
+            MKB_API_Endpoints::instance();
+        }
     }
 }
 

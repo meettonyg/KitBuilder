@@ -64,6 +64,39 @@ class MKB_API_Endpoints {
             }
         ));
         
+        // Media Kits endpoints
+        register_rest_route('media-kit/v1', '/kits', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'save_kit'),
+            'permission_callback' => function() {
+                return current_user_can('edit_posts');
+            }
+        ));
+        
+        register_rest_route('media-kit/v1', '/kits/(?P<entry_key>[\w-]+)', array(
+            'methods' => 'GET',
+            'callback' => array($this, 'get_kit'),
+            'permission_callback' => function() {
+                return current_user_can('read');
+            }
+        ));
+        
+        register_rest_route('media-kit/v1', '/kits/(?P<entry_key>[\w-]+)', array(
+            'methods' => 'PUT',
+            'callback' => array($this, 'update_kit'),
+            'permission_callback' => function() {
+                return current_user_can('edit_posts');
+            }
+        ));
+        
+        register_rest_route('media-kit/v1', '/kits/(?P<entry_key>[\w-]+)', array(
+            'methods' => 'DELETE',
+            'callback' => array($this, 'delete_kit'),
+            'permission_callback' => function() {
+                return current_user_can('edit_posts');
+            }
+        ));
+        
         // Single template endpoint
         register_rest_route('media-kit/v1', '/templates/(?P<id>[\w-]+)', array(
             'methods' => 'GET',
@@ -452,6 +485,242 @@ class MKB_API_Endpoints {
         // Check for premium access meta
         $has_premium = get_user_meta($user_id, 'mkb_premium_access', true);
         return $has_premium === 'yes';
+    }
+    
+    /**
+     * Save Kit (Create)
+     * 
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function save_kit($request) {
+        // Get kit data from request
+        $kit_data = $request->get_json_params();
+        
+        if (empty($kit_data)) {
+            return new WP_Error(
+                'missing_data',
+                __('No kit data provided', 'media-kit-builder'),
+                array('status' => 400)
+            );
+        }
+        
+        // Sanitize data
+        $sanitized_data = $this->sanitize_kit_data($kit_data);
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'media_kits';
+        
+        // Create new entry key
+        $entry_key = md5(uniqid(get_current_user_id(), true));
+        
+        // Encode data
+        $json_data = wp_json_encode($sanitized_data);
+        
+        // Insert into database
+        $result = $wpdb->insert(
+            $table_name,
+            array(
+                'entry_key' => $entry_key,
+                'user_id' => get_current_user_id(),
+                'data' => $json_data,
+                'created' => current_time('mysql'),
+                'modified' => current_time('mysql'),
+            ),
+            array('%s', '%d', '%s', '%s', '%s')
+        );
+        
+        if ($result === false) {
+            return new WP_Error(
+                'db_error',
+                __('Failed to save media kit: ' . $wpdb->last_error, 'media-kit-builder'),
+                array('status' => 500)
+            );
+        }
+        
+        return rest_ensure_response(array(
+            'success' => true,
+            'entry_key' => $entry_key,
+            'message' => __('Media kit saved successfully', 'media-kit-builder')
+        ));
+    }
+    
+    /**
+     * Get Kit
+     * 
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function get_kit($request) {
+        $entry_key = $request->get_param('entry_key');
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'media_kits';
+        
+        // Get media kit
+        $media_kit = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM $table_name WHERE entry_key = %s AND user_id = %d",
+                $entry_key,
+                get_current_user_id()
+            )
+        );
+        
+        if (!$media_kit) {
+            return new WP_Error(
+                'not_found',
+                __('Media kit not found', 'media-kit-builder'),
+                array('status' => 404)
+            );
+        }
+        
+        // Parse data
+        $kit_data = json_decode($media_kit->data, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return new WP_Error(
+                'invalid_data',
+                __('Invalid media kit data: ' . json_last_error_msg(), 'media-kit-builder'),
+                array('status' => 500)
+            );
+        }
+        
+        return rest_ensure_response(array(
+            'success' => true,
+            'entry_key' => $media_kit->entry_key,
+            'data' => $kit_data
+        ));
+    }
+    
+    /**
+     * Update Kit
+     * 
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function update_kit($request) {
+        $entry_key = $request->get_param('entry_key');
+        $kit_data = $request->get_json_params();
+        
+        if (empty($kit_data)) {
+            return new WP_Error(
+                'missing_data',
+                __('No kit data provided', 'media-kit-builder'),
+                array('status' => 400)
+            );
+        }
+        
+        // Sanitize data
+        $sanitized_data = $this->sanitize_kit_data($kit_data);
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'media_kits';
+        
+        // Encode data
+        $json_data = wp_json_encode($sanitized_data);
+        
+        // Update in database
+        $result = $wpdb->update(
+            $table_name,
+            array(
+                'data' => $json_data,
+                'modified' => current_time('mysql'),
+            ),
+            array(
+                'entry_key' => $entry_key,
+                'user_id' => get_current_user_id()
+            ),
+            array('%s', '%s'),
+            array('%s', '%d')
+        );
+        
+        if ($result === false) {
+            return new WP_Error(
+                'db_error',
+                __('Failed to update media kit: ' . $wpdb->last_error, 'media-kit-builder'),
+                array('status' => 500)
+            );
+        } else if ($result === 0) {
+            return new WP_Error(
+                'not_found',
+                __('Media kit not found or no changes made', 'media-kit-builder'),
+                array('status' => 404)
+            );
+        }
+        
+        return rest_ensure_response(array(
+            'success' => true,
+            'entry_key' => $entry_key,
+            'message' => __('Media kit updated successfully', 'media-kit-builder')
+        ));
+    }
+    
+    /**
+     * Delete Kit
+     * 
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function delete_kit($request) {
+        $entry_key = $request->get_param('entry_key');
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'media_kits';
+        
+        // Delete from database
+        $result = $wpdb->delete(
+            $table_name,
+            array(
+                'entry_key' => $entry_key,
+                'user_id' => get_current_user_id()
+            ),
+            array('%s', '%d')
+        );
+        
+        if ($result === false) {
+            return new WP_Error(
+                'db_error',
+                __('Failed to delete media kit: ' . $wpdb->last_error, 'media-kit-builder'),
+                array('status' => 500)
+            );
+        } else if ($result === 0) {
+            return new WP_Error(
+                'not_found',
+                __('Media kit not found', 'media-kit-builder'),
+                array('status' => 404)
+            );
+        }
+        
+        return rest_ensure_response(array(
+            'success' => true,
+            'message' => __('Media kit deleted successfully', 'media-kit-builder')
+        ));
+    }
+    
+    /**
+     * Sanitize kit data
+     * 
+     * @param array $data Data to sanitize
+     * @return array Sanitized data
+     */
+    private function sanitize_kit_data($data) {
+        // Deep sanitization of all fields
+        if (is_array($data)) {
+            foreach ($data as $key => $value) {
+                if (is_array($value)) {
+                    $data[$key] = $this->sanitize_kit_data($value);
+                } else if (is_string($value)) {
+                    // Allow certain HTML in content fields
+                    if (in_array($key, array('content', 'html', 'text'))) {
+                        $data[$key] = wp_kses_post($value);
+                    } else {
+                        $data[$key] = sanitize_text_field($value);
+                    }
+                }
+            }
+        }
+        
+        return $data;
     }
 }
 
