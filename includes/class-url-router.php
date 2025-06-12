@@ -89,8 +89,11 @@ class Media_Kit_Builder_URL_Router {
         // Enqueue JS with correct dependencies
         wp_enqueue_script('jquery');
         wp_enqueue_media();
+        
+        // Load initializer first
+        wp_enqueue_script('mkb-standalone-initializer', $assets_url . 'js/standalone-initializer.js', ['jquery'], $version, false);
 
-        wp_enqueue_script('mkb-core-builder', $assets_url . 'js/builder.js', ['jquery'], $version, true);
+        wp_enqueue_script('mkb-core-builder', $assets_url . 'js/builder.js', ['jquery', 'mkb-standalone-initializer'], $version, true);
         wp_enqueue_script('mkb-section-templates', $assets_url . 'js/section-templates.js', ['jquery', 'mkb-core-builder'], $version, true);
         wp_enqueue_script('mkb-wp-adapter', $assets_url . 'js/builder-wordpress.js', ['mkb-core-builder', 'mkb-section-templates'], $version, true);
         wp_enqueue_script('mkb-template-manager', $assets_url . 'js/template-manager.js', ['mkb-wp-adapter'], $version, true);

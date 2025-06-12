@@ -507,9 +507,29 @@ class Media_Kit_Builder {
     
     /**
      * Load initializer script in head
+     * 
+     * We use this method to ensure the initializer is loaded early, before any other scripts,
+     * but we're careful not to output it on pages where the builder is being loaded properly.
      */
     public function load_initializer_in_head() {
-        // Output the initializer directly in the head
+        // Don't output on admin pages where we're already loading the builder
+        $screen = get_current_screen();
+        if (is_admin() && $screen && $screen->id === 'toplevel_page_media-kit-builder') {
+            return;
+        }
+        
+        // Don't output on pages with the media kit shortcode
+        global $post;
+        if (!is_admin() && is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'media_kit_builder')) {
+            return;
+        }
+        
+        // Don't output on the custom builder URLs
+        if (get_query_var('mkb_page')) {
+            return;
+        }
+        
+        // Output the initializer directly in the head for other pages
         echo '<script src="' . MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/standalone-initializer.js?ver=' . MEDIA_KIT_BUILDER_VERSION . '"></script>';
     }
     

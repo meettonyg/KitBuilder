@@ -288,16 +288,5 @@ if (!defined('ABSPATH')) {
     </div>
 </div>
 
-<script type="text/javascript">
-    // Pass data to JavaScript
-    window.MediaKitBuilder = {
-        config: {
-            accessTier: '<?php echo esc_js($access_tier); ?>',
-            entryKey: '<?php echo esc_js($entry_key); ?>',
-            ajaxUrl: '<?php echo esc_js(admin_url('admin-ajax.php')); ?>',
-            nonce: '<?php echo esc_js(wp_create_nonce('media_kit_builder_nonce')); ?>',
-            restUrl: '<?php echo esc_js(rest_url('media-kit/v1/')); ?>',
-            restNonce: '<?php echo esc_js(wp_create_nonce('wp_rest')); ?>'
-        }
-    };
-</script>
+<!-- Script data will be added via wp_localize_script -->
+<!-- The initializer should not be loaded here as it's loaded by the plugin elsewhere -->
