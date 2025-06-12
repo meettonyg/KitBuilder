@@ -81,13 +81,36 @@ class Media_Kit_Builder_URL_Router {
      */
     private function enqueue_builder_assets() {
         $version = MKB_VERSION;
+		$plugin_url = MKB_PLUGIN_URL; // ADDED
+        $plugin_dir = MKB_PLUGIN_DIR; // ADDED
         $assets_url = MKB_PLUGIN_URL . 'assets/';
 
-        // Enqueue CSS - load both builder.css and builder-v2.css to ensure complete styling
+        // 1. Enqueue the main builder layout style (refactored builder.css)
         wp_enqueue_style('mkb-builder-core-styles', $assets_url . 'css/builder.css', [], $version);
-        wp_enqueue_style('mkb-builder-v2-styles', $assets_url . 'css/builder-v2.css', ['mkb-builder-core-styles'], $version);
-        wp_enqueue_style('mkb-components-styles', $assets_url . 'css/components.css', ['mkb-builder-core-styles'], $version);
+
+        // 2. Enqueue WordPress admin compatibility styles
         wp_enqueue_style('mkb-wp-admin-compat', $assets_url . 'css/wp-admin-compat.css', ['mkb-builder-core-styles'], $version);
+
+        // 3. Dynamically enqueue styles for each component
+        $components_dir = $plugin_dir . 'components/';
+        if (is_dir($components_dir)) {
+            $components = array_filter(scandir($components_dir), function($item) use ($components_dir) {
+                return is_dir($components_dir . $item) && !in_array($item, ['.', '..']);
+            });
+
+            foreach ($components as $component_slug) {
+                $style_path = $components_dir . $component_slug . '/styles.css';
+                $style_url = $plugin_url . 'components/' . $component_slug . '/styles.css';
+                if (file_exists($style_path)) {
+                    wp_enqueue_style(
+                        'mkb-component-' . $component_slug . '-styles',
+                        $style_url,
+                        ['mkb-builder-core-styles'],
+                        $version
+                    );
+                }
+            }
+        }
 
         // Enqueue JS with correct dependencies
         wp_enqueue_script('jquery');

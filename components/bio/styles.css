@@ -1,35 +1,17 @@
 /**
- * Bio Component Specific Styles (New Architecture)
+ * Bio Component Specific Styles
  * components/bio/styles.css
  */
-
-/* .mkb-bio-component-wrapper is already in global components.css */
-/* If you have more specific styles for the bio component wrapper, add them here. */
-/* For example: */
-/*
-.mkb-bio-component-wrapper {
-    border-left: 3px solid var(--theme-accent, #1e293b); // Example specific styling
-}
-*/
-
 .mkb-bio-text {
-    line-height: 1.7; /* From components.css, good default */ /* */
-    color: var(--text-color-base, #1e293b); /* Use CSS variable */
-    font-family: var(--secondary-font, 'Georgia', serif); /* Use CSS variable */
+    line-height: 1.7;
+    color: var(--text-color-base, #475569);
+    font-family: var(--secondary-font, 'Georgia', serif);
 }
 
 .mkb-bio-text p {
-    margin-bottom: 1em; /* From components.css */ /* */
+    margin-bottom: 1em;
 }
 
 .mkb-bio-text p:last-child {
-    margin-bottom: 0; /* From components.css */ /* */
+    margin-bottom: 0;
 }
-
-/* If contenteditable custom text needs specific styling in the editor */
-.mkb-bio-text[contenteditable="true"] {
-    /* outline: 1px dashed var(--theme-primary, #0ea5e9); // Example focus or editable indicator */
-    /* padding: 5px; */
-}
-
-/* Add any other styles that are ONLY for the bio component */
