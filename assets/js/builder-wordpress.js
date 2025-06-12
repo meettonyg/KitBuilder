@@ -63,7 +63,7 @@
             
             try {
                 // Check if we have the MediaKitBuilder class
-                if (typeof MediaKitBuilder !== 'function') {
+                if (typeof window.MediaKitBuilder.Core !== 'function') {
                     console.error('MediaKitBuilder class not found. Make sure builder.js is loaded first.');
                     return;
                 }
@@ -77,7 +77,7 @@
                 }
                 
                 // Create MediaKitBuilder instance
-                this.builder = new MediaKitBuilder({
+                this.builder = new window.MediaKitBuilder.Core({
                     container: '#media-kit-builder',
                     previewContainer: '#media-kit-preview',
                     componentPalette: '#component-palette',

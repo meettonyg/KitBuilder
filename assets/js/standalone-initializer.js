@@ -13,6 +13,12 @@
     window.MediaKitBuilder = window.MediaKitBuilder || {};
     window.MediaKitBuilder.global = window.MediaKitBuilder.global || {};
     
+    // Create a safe initialization function
+    window.MediaKitBuilder.safeInit = function() {
+        console.log('MediaKitBuilder.safeInit called');
+        window.MediaKitBuilder.checkElements();
+    };
+    
     // Create the init function that will be called by other scripts
     window.MediaKitBuilder.init = function() {
         console.log('MediaKitBuilder.init called');

@@ -14,6 +14,8 @@ if (!window.MediaKitBuilder) {
 
 // Set up global reference object
 window.MediaKitBuilder.global = window.MediaKitBuilder.global || {};
+// Store the MediaKitBuilder class in the global object
+window.MediaKitBuilder.Core = MediaKitBuilder;
 
 // Define init function if it doesn't exist yet
 if (!window.MediaKitBuilder.init) {
