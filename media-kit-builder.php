@@ -69,8 +69,6 @@ class Media_Kit_Builder {
         // Include REST API endpoints
         require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'includes/core/class-api-endpoints.php';
         
-        // Include AJAX handlers for backward compatibility
-        require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'ajax-handlers.php';
     }
     
     /**
