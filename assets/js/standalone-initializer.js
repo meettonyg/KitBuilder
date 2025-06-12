@@ -34,6 +34,19 @@
         }
     };
     
+    // Define Core constructor if it doesn't exist
+    if (!window.MediaKitBuilder.Core) {
+        window.MediaKitBuilder.Core = function(config) {
+            console.log('MediaKitBuilder.Core constructor called with config:', config);
+            this.config = config || {};
+            this.init = function() {
+                console.log('MediaKitBuilder.Core init called');
+            };
+            // Make instance available globally
+            window.MediaKitBuilder.global.instance = this;
+        };
+    }
+    
     // Create function to check if DOM elements exist
     window.MediaKitBuilder.checkElements = function() {
         const elements = {

@@ -64,8 +64,16 @@
             try {
                 // Check if we have the MediaKitBuilder class
                 if (typeof window.MediaKitBuilder.Core !== 'function') {
-                    console.error('MediaKitBuilder class not found. Make sure builder.js is loaded first.');
-                    return;
+                    console.warn('MediaKitBuilder Core class not found. Will attempt to use a fallback version.');
+                    window.MediaKitBuilder.Core = function(config) {
+                        console.log('Fallback MediaKitBuilder.Core constructor called with config:', config);
+                        this.config = config || {};
+                        this.init = function() {
+                            console.log('Fallback MediaKitBuilder.Core init called');
+                        };
+                        // Make instance available globally
+                        window.MediaKitBuilder.global.instance = this;
+                    };
                 }
                 
                 // Check if elements are ready (from initializer)

@@ -97,6 +97,10 @@ class Media_Kit_Builder {
         
         // Add shortcode
         add_shortcode('media_kit_builder', array($this, 'media_kit_builder_shortcode'));
+        
+        // AJAX handlers
+        add_action('wp_ajax_mkb_test_ajax', array($this, 'ajax_test_connection'));
+        add_action('wp_ajax_nopriv_mkb_test_ajax', array($this, 'ajax_test_connection'));
     }
     
     /**
@@ -544,6 +548,24 @@ class Media_Kit_Builder {
             // Initialize the class if not already done
             MKB_API_Endpoints::instance();
         }
+    }
+    
+    /**
+     * AJAX handler for testing the connection
+     */
+    public function ajax_test_connection() {
+        // Verify nonce for security (but don't die for test connection)
+        // This allows the initial connection test to succeed even if nonce is missing
+        $verified = false;
+        if (isset($_REQUEST['nonce'])) {
+            $verified = wp_verify_nonce($_REQUEST['nonce'], 'media_kit_builder_nonce');
+        }
+        
+        wp_send_json_success(array(
+            'message' => 'Connection successful!',
+            'timestamp' => current_time('mysql'),
+            'nonce_verified' => $verified
+        ));
     }
 }
 
