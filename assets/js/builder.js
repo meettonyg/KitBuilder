@@ -2806,17 +2806,7 @@ if (!window.MediaKitBuilder.init) {
         }
     }
     
-    // Make MediaKitBuilder available globally
-    window.MediaKitBuilder = MediaKitBuilder;
+	// Store the MediaKitBuilder class in the global object
+	window.MediaKitBuilder.Core = MediaKitBuilder;
     
-    // Initialize when DOM is ready
-    $(document).ready(function() {
-        console.log('Document ready, initializing Media Kit Builder...');
-        if (window.mediaKitBuilder) {
-            console.log('Media Kit Builder already initialized');
-        } else {
-            console.log('Creating new Media Kit Builder instance');
-            window.mediaKitBuilder = new MediaKitBuilder();
-        }
-    });
 })(jQuery);
