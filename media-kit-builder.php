@@ -58,11 +58,19 @@ class Media_Kit_Builder {
     private function includes() {
         // Include admin files
         if (is_admin()) {
-            require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'admin/admin.php';
+            // Use the correct path to admin files
+            require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'includes/admin/class-admin-menu.php';
+            require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'includes/admin/class-builder-page.php';
         }
         
-        // Include REST API endpoints instead of legacy AJAX handlers
+        // Include core files
+        require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'includes/enqueue-scripts.php';
+        
+        // Include REST API endpoints
         require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'includes/core/class-api-endpoints.php';
+        
+        // Include AJAX handlers for backward compatibility
+        require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'ajax-handlers.php';
     }
     
     /**

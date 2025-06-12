@@ -1,3 +1,4 @@
+<?php
 /**
  * Media Kit Builder - AJAX Handlers
  * 
@@ -390,3 +391,4 @@ function media_kit_builder_create_tables() {
         dbDelta($sql);
     }
 }
+?>
