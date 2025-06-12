@@ -2,35 +2,26 @@
  * Topics Component Specific Styles
  * components/topics/styles.css
  */
-.mkb-topics-grid { display: grid; gap: 16px; margin-bottom: 20px; }
 
-/* Grid Column Variations */
-.topics-columns-2 { grid-template-columns: repeat(2, 1fr); }
-.topics-columns-3 { grid-template-columns: repeat(3, 1fr); }
-.topics-columns-4 { grid-template-columns: repeat(4, 1fr); }
-
-/* Base Topic Item Styles */
-.mkb-topic-item { position: relative; transition: all 0.2s ease; font-weight: 500; word-wrap: break-word; cursor: default; }
-
-/* Card Style Topics */
-.topics-style-cards .mkb-topic-item { background: var(--theme-secondary, #f1f5f9); padding: 16px; border-radius: 8px; border-left: 4px solid var(--topics-accent-color, var(--theme-primary, #0ea5e9)); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); min-height: 60px; display: flex; align-items: center; justify-content: center; text-align: center; }
-.topics-style-cards .mkb-topic-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border-left-width: 6px; }
-
-/* Badge Style Topics */
-.topics-style-badges .mkb-topic-item { background: var(--topics-accent-color, var(--theme-primary, #0ea5e9)); color: white; padding: 8px 16px; border-radius: 20px; text-align: center; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; min-height: 36px; width: 100%; }
-.topics-style-badges .mkb-topics-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-.topics-style-badges .mkb-topic-item:hover { background: var(--theme-primary-dark, #0284c7); transform: scale(1.05); }
-
-/* Minimal Style Topics */
-.topics-style-minimal .mkb-topic-item { padding: 12px 0 12px 20px; border-bottom: 1px solid var(--theme-border, #e2e8f0); color: var(--text-color-base, #475569); position: relative; }
-.topics-style-minimal .mkb-topic-item::before { content: '•'; position: absolute; left: 0; color: var(--topics-accent-color, var(--theme-primary, #0ea5e9)); font-weight: bold; font-size: 18px; }
-.topics-style-minimal .mkb-topics-grid { grid-template-columns: 1fr; gap: 0; }
-.topics-style-minimal .mkb-topic-item:last-child { border-bottom: none; }
-
-/* Responsive */
-@media (max-width: 768px) {
-    .topics-columns-4, .topics-columns-3 { grid-template-columns: repeat(2, 1fr); }
+.topics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
 }
+
+.topic-item {
+    background: #f1f5f9;
+    padding: 12px;
+    border-radius: 6px;
+    border-left: 3px solid #0ea5e9;
+    outline: none;
+    color: #1e293b;
+    font-weight: 500;
+    text-align: center;
+}
+
 @media (max-width: 480px) {
-    .topics-columns-4, .topics-columns-3, .topics-columns-2, .topics-style-badges .mkb-topics-grid { grid-template-columns: 1fr; }
+    .topics-grid {
+        grid-template-columns: 1fr;
+    }
 }

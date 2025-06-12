@@ -87,11 +87,14 @@ class Media_Kit_Builder_URL_Router {
 
         // 1. Enqueue the main builder layout style (refactored builder.css)
         wp_enqueue_style('mkb-builder-core-styles', $assets_url . 'css/builder.css', [], $version);
+		
+		 // 2. Enqueue the NEW shared component styles
+        wp_enqueue_style('mkb-components-styles', $assets_url . 'css/components.css', ['mkb-builder-core-styles'], $version);
 
-        // 2. Enqueue WordPress admin compatibility styles
+        // 3. Enqueue WordPress admin compatibility styles
         wp_enqueue_style('mkb-wp-admin-compat', $assets_url . 'css/wp-admin-compat.css', ['mkb-builder-core-styles'], $version);
 
-        // 3. Dynamically enqueue styles for each component
+        // 4. Dynamically enqueue styles for each component
         $components_dir = $plugin_dir . 'components/';
         if (is_dir($components_dir)) {
             $components = array_filter(scandir($components_dir), function($item) use ($components_dir) {

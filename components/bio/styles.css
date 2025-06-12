@@ -1,17 +1,28 @@
 /**
- * Bio Component Specific Styles
+ * Bio Component Specific Styles (Corrected)
  * components/bio/styles.css
  */
-.mkb-bio-text {
-    line-height: 1.7;
-    color: var(--text-color-base, #475569);
-    font-family: var(--secondary-font, 'Georgia', serif);
-}
 
-.mkb-bio-text p {
+/*
+ * Targets the paragraph elements directly within the biography component's
+ * content area to ensure correct text styling.
+ */
+.editable-element[data-component="bio"] p {
+    line-height: 1.7;
+    color: #475569; /* Matches the text color from the v2 example */
+    font-family: 'Georgia', serif; /* Using a serif font for body text as implied by design conventions */
     margin-bottom: 1em;
 }
 
-.mkb-bio-text p:last-child {
+.editable-element[data-component="bio"] p:last-child {
     margin-bottom: 0;
+}
+
+/*
+ * Provides visual feedback in the editor when the biography
+ * text is being edited.
+ */
+.editable-element[data-component="bio"] [contenteditable="true"]:focus {
+    outline: 1px dashed #0ea5e9;
+    background-color: rgba(14, 165, 233, 0.05);
 }
