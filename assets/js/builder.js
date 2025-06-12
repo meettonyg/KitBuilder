@@ -138,15 +138,15 @@ window.MediaKitBuilder.global = window.MediaKitBuilder.global || {};
                 
                 // Update global references now that everything is initialized
                 this.exposePropertiesGlobally();
-            
-            // Export global instance for backward compatibility
-            window.mediaKitBuilder = this;
-            
-            // Expose initialization complete flag
-            window.MediaKitBuilder.global.initialized = true;
-            
-            // Dispatch global event for other modules
-            document.dispatchEvent(new CustomEvent('mediakit-builder-initialized', { detail: this }));
+                    
+                    // Export global instance for backward compatibility
+                    window.mediaKitBuilder = this;
+                    
+                    // Expose initialization complete flag
+                    window.MediaKitBuilder.global.initialized = true;
+                    
+                    // Dispatch global event for other modules
+                    document.dispatchEvent(new CustomEvent('mediakit-builder-initialized', { detail: this }));
             } catch (error) {
                 console.error('Error initializing Media Kit Builder:', error);
                 this.handleError(error, 'initialization');

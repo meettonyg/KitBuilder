@@ -60,6 +60,7 @@ class Media_Kit_Builder {
         // Core classes
         require_once MKB_PLUGIN_DIR . 'includes/enqueue-scripts.php';
         require_once MKB_PLUGIN_DIR . 'includes/class-api-endpoints.php';
+        require_once MKB_PLUGIN_DIR . 'includes/class-url-router.php';
         
         // Admin classes
         if (is_admin()) {
