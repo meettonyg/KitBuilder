@@ -49,6 +49,9 @@ class Media_Kit_Builder_URL_Router {
         if (empty($mkb_page)) {
             return; // Not a media kit builder request.
         }
+        
+        // Set a flag to prevent canonical redirects which can interfere with custom URLs
+        remove_action('wp_head', 'rel_canonical');
 
         switch ($mkb_page) {
             case 'new':
@@ -117,35 +120,84 @@ class Media_Kit_Builder_URL_Router {
     }
     
     /**
-     * Renders the main builder page by loading the builder template.
+     * Renders the main builder page by loading the builder template within a proper HTML structure.
+     * This version uses more targeted WordPress functions to avoid theme/plugin conflicts.
      */
     private function show_builder_page() {
-        // This is the correct place to enqueue scripts for this specific page.
+        // Enqueue assets for this page.
         $this->enqueue_builder_assets();
         
+        // Make variables available to the template.
+        $entry_key = get_query_var('mkb_entry_key');
+        $access_tier = function_exists('mkb_get_user_access_tier') ? mkb_get_user_access_tier() : 'guest';
         $template_file = MKB_PLUGIN_DIR . 'templates/builder.php';
 
-        if (file_exists($template_file)) {
-            // These variables will be available inside the included template file.
-            $entry_key = get_query_var('mkb_entry_key');
-            $access_tier = function_exists('mkb_get_user_access_tier') ? mkb_get_user_access_tier() : 'guest';
+        ?>
+        <!DOCTYPE html>
+        <html <?php language_attributes(); ?>>
+        <head>
+            <meta charset="<?php bloginfo('charset'); ?>">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title><?php echo esc_html__('Media Kit Builder', 'media-kit-builder'); ?> - <?php bloginfo('name'); ?></title>
+            <?php
+            /**
+             * Using wp_print_styles() and wp_print_head_scripts() creates a more isolated
+             * environment for the builder, preventing conflicts from other plugins or themes
+             * that might also hook into the standard wp_head().
+             */
+            if (is_user_logged_in()) {
+                wp_print_styles('admin-bar');
+                wp_print_scripts('admin-bar');
+            }
+            wp_print_styles();
+            wp_print_head_scripts();
+            ?>
+        </head>
+        <body class="mkb-builder-body">
+            <?php 
+            // Render the WordPress admin bar for logged-in users.
+            if (is_user_logged_in()) {
+                wp_admin_bar_render(); 
+            }
             
-            // Make sure we include both the builder.css and builder-v2.css to cover all styles
-            include $template_file;
-        } else {
-            wp_die('Builder template is missing.');
-        }
+            // Include the builder's main content template.
+            if (file_exists($template_file)) {
+                include $template_file;
+            } else {
+                wp_die('Builder template is missing.');
+            }
+
+            /**
+             * Using wp_print_footer_scripts() ensures that only scripts specifically
+             * enqueued for the footer are printed, which is where the main builder
+             * application logic should be loaded.
+             */
+            wp_print_footer_scripts();
+            ?>
+        </body>
+        </html>
+        <?php
     }
     
     // Stubs for other pages - you can fill these in similarly
     private function show_preview_page() {
-        // You would enqueue preview-specific assets here
-        wp_die('Preview page is not yet implemented.');
+        // This should also be a full HTML page with wp_head() and wp_footer()
+        $template_file = MKB_PLUGIN_DIR . 'templates/preview.php';
+        if(file_exists($template_file)){
+            include $template_file;
+        } else {
+             wp_die('Preview page is not yet implemented.');
+        }
     }
 
     private function show_gallery_page() {
-        // You would enqueue gallery-specific assets here
-        wp_die('Gallery page is not yet implemented.');
+        // This should also be a full HTML page with wp_head() and wp_footer()
+        $template_file = MKB_PLUGIN_DIR . 'templates/gallery.php';
+        if(file_exists($template_file)){
+            include $template_file;
+        } else {
+            wp_die('Gallery page is not yet implemented.');
+        }
     }
 }
 

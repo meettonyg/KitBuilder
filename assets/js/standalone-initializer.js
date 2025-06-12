@@ -9,34 +9,37 @@
 (function() {
     try {
         console.log('🚀 Media Kit Builder Standalone Initializer - Version 1.0.1');
-        
+
         // Set up the global namespace safely
         window.MediaKitBuilder = window.MediaKitBuilder || {};
         window.MediaKitBuilder.global = window.MediaKitBuilder.global || {};
-        
-        // Create function to check if DOM elements exist - defining this first to avoid reference errors
+
+        /**
+         * Checks for the required DOM elements for the builder.
+         * If they don't exist, it creates and appends them to the DOM.
+         */
         window.MediaKitBuilder.checkElements = function() {
             try {
                 console.log('Running checkElements function');
-                
+
                 const elements = {
                     container: document.querySelector('#media-kit-builder'),
                     preview: document.querySelector('#media-kit-preview'),
                     palette: document.querySelector('#component-palette')
                 };
-                
-                console.log('Checking for required DOM elements:', 
-                        'container:', !!elements.container, 
-                        'preview:', !!elements.preview, 
+
+                console.log('Checking for required DOM elements:',
+                        'container:', !!elements.container,
+                        'preview:', !!elements.preview,
                         'palette:', !!elements.palette);
-                
-                // If elements don't exist, create them
+
+                // If the main container doesn't exist, create it.
                 if (!elements.container) {
                     console.log('Creating media-kit-builder container');
                     const container = document.createElement('div');
                     container.id = 'media-kit-builder';
                     container.className = 'media-kit-builder';
-                    
+
                     // Find a suitable place to append it
                     const content = document.querySelector('.content-area, .entry-content, main, #content');
                     if (content) {
@@ -44,10 +47,10 @@
                     } else {
                         document.body.appendChild(container);
                     }
-                    
                     elements.container = container;
                 }
-                
+
+                // If the preview container doesn't exist within the main container, create it.
                 if (!elements.preview && elements.container) {
                     console.log('Creating media-kit-preview container');
                     const preview = document.createElement('div');
@@ -56,7 +59,8 @@
                     elements.container.appendChild(preview);
                     elements.preview = preview;
                 }
-                
+
+                // If the component palette doesn't exist within the main container, create it.
                 if (!elements.palette && elements.container) {
                     console.log('Creating component-palette container');
                     const palette = document.createElement('div');
@@ -65,17 +69,18 @@
                     elements.container.appendChild(palette);
                     elements.palette = palette;
                 }
-                
-                // Store elements globally for reference
+
+                // Store elements globally for reference by other scripts
                 window.MediaKitBuilder.elements = elements;
-                
-                // Set initialization flag
+
+                // Set a flag indicating that the DOM elements are ready
                 window.MediaKitBuilder.elementsReady = true;
-                
+
                 return elements;
+
             } catch (error) {
                 console.error('Error in checkElements function:', error);
-                // Create a basic fallback return
+                // Create a basic fallback return to prevent further errors
                 return {
                     container: document.querySelector('#media-kit-builder') || document.body,
                     preview: document.querySelector('#media-kit-preview'),
@@ -83,8 +88,10 @@
                 };
             }
         };
-        
-        // Create a safe initialization function
+
+        /**
+         * A safe initialization function that ensures elements are checked and ready.
+         */
         window.MediaKitBuilder.safeInit = function() {
             try {
                 console.log('MediaKitBuilder.safeInit called');
@@ -97,13 +104,16 @@
                 console.error('Error in safeInit:', error);
             }
         };
-        
-        // Create the init function that will be called by other scripts
+
+        /**
+         * The main initialization function to be called by other scripts.
+         * It checks if the main builder instance exists and initializes it.
+         */
         window.MediaKitBuilder.init = function() {
             try {
                 console.log('MediaKitBuilder.init called');
-                
-                // Check if the instance is already created
+
+                // Check if the builder instance has been created
                 if (window.MediaKitBuilder.global.instance) {
                     console.log('MediaKitBuilder instance exists, initializing...');
                     if (typeof window.MediaKitBuilder.global.instance.init === 'function') {
@@ -113,15 +123,18 @@
                     }
                 } else {
                     console.log('MediaKitBuilder instance not found, will initialize when ready');
-                    // Set flag to initialize when instance is created
+                    // Set a flag for the builder.js script to know it should initialize immediately upon creation.
                     window.MediaKitBuilder.shouldInitialize = true;
                 }
             } catch (error) {
                 console.error('Error in init function:', error);
             }
         };
-        
-        // Define Core constructor if it doesn't exist
+
+        /**
+         * Defines a fallback Core constructor if it doesn't exist,
+         * ensuring other scripts don't fail if they load out of order.
+         */
         if (!window.MediaKitBuilder.Core) {
             window.MediaKitBuilder.Core = function(config) {
                 try {
@@ -134,44 +147,32 @@
                             console.error('Error in Core init method:', error);
                         }
                     };
-                    // Make instance available globally
+                    // Make this instance globally available for other scripts to find.
                     window.MediaKitBuilder.global.instance = this;
                 } catch (error) {
                     console.error('Error in Core constructor:', error);
                 }
             };
         }
-        
-        // Safely run the element check when the DOM is ready
+
+        /**
+         * After all functions are defined on the global object,
+         * safely run the element check. This resolves the race condition.
+         */
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                try {
-                    if (typeof window.MediaKitBuilder.checkElements === 'function') {
-                        window.MediaKitBuilder.checkElements();
-                    } else {
-                        console.error('checkElements function is not defined on DOMContentLoaded');
-                    }
-                } catch (error) {
-                    console.error('Error in DOMContentLoaded callback:', error);
-                }
-            });
+            // The DOM is not yet ready, wait for the DOMContentLoaded event.
+            document.addEventListener('DOMContentLoaded', window.MediaKitBuilder.checkElements);
         } else {
-            try {
-                if (typeof window.MediaKitBuilder.checkElements === 'function') {
-                    window.MediaKitBuilder.checkElements();
-                } else {
-                    console.error('checkElements function is not defined on immediate run');
-                }
-            } catch (error) {
-                console.error('Error in immediate run of checkElements:', error);
-            }
+            // The DOM has already loaded, execute the function immediately.
+            window.MediaKitBuilder.checkElements();
         }
-        
+
         console.log('Media Kit Builder global namespace initialized');
+
     } catch (error) {
         console.error('Critical error in standalone initializer:', error);
-        
-        // Emergency recovery - set up minimal required functionality
+
+        // Emergency fallback to prevent cascading script failures.
         window.MediaKitBuilder = window.MediaKitBuilder || {};
         window.MediaKitBuilder.checkElements = window.MediaKitBuilder.checkElements || function() {
             console.log('Emergency checkElements function called');
