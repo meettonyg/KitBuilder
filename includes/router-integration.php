@@ -21,8 +21,11 @@ function mkb_handle_builder_routes() {
     $action = !empty($parts[0]) ? $parts[0] : 'gallery';
     $kit_id = !empty($parts[1]) ? $parts[1] : null;
     
+    // Make sure the builder interface class is loaded
+    require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'includes/admin/class-builder-interface.php';
+    
     // Initialize builder interface
-    if (class_exists('\MediaKitBuilder\Admin\BuilderInterface')) {
+    if (class_exists('MediaKitBuilder\Admin\BuilderInterface')) {
         $builder = new \MediaKitBuilder\Admin\BuilderInterface();
         
         switch($action) {
@@ -49,6 +52,9 @@ function mkb_handle_builder_routes() {
                 mkb_render_gallery();
                 break;
         }
+    } else {
+        // Fallback if the class doesn't exist
+        echo 'Error: BuilderInterface class not found. Please check plugin installation.';
     }
 }
 

@@ -17,6 +17,11 @@ define('MEDIA_KIT_BUILDER_VERSION', '1.0.0');
 define('MEDIA_KIT_BUILDER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('MEDIA_KIT_BUILDER_PLUGIN_URL', plugin_dir_url(__FILE__));
 
+// Constants used by the URL router
+define('MKB_VERSION', '1.0.0');
+define('MKB_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('MKB_PLUGIN_URL', plugin_dir_url(__FILE__));
+
 /**
  * Media Kit Builder Plugin Class
  */
@@ -69,6 +74,9 @@ class Media_Kit_Builder {
         // Include REST API endpoints
         require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'includes/core/class-api-endpoints.php';
         
+        // Include URL Router
+        require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'includes/class-url-router.php';
+        require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'includes/router-integration.php';
     }
     
     /**
@@ -100,6 +108,9 @@ class Media_Kit_Builder {
         
         // Set default options
         $this->set_default_options();
+        
+        // Flush rewrite rules to ensure custom URLs work
+        flush_rewrite_rules();
     }
     
     /**
@@ -107,6 +118,9 @@ class Media_Kit_Builder {
      */
     public function deactivate() {
         // Cleanup tasks
+        
+        // Flush rewrite rules to remove custom URLs
+        flush_rewrite_rules();
     }
     
     /**
