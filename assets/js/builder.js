@@ -7,11 +7,26 @@
 
 console.log('🔧 builder.js loading... ' + new Date().toISOString());
 
-// Define MediaKitBuilder globally for easier access
-window.MediaKitBuilder = window.MediaKitBuilder || {};
+// Make sure global namespace is set up correctly
+if (!window.MediaKitBuilder) {
+    window.MediaKitBuilder = {};
+}
 
-// Create global reference object for state, elements and utility functions
+// Set up global reference object
 window.MediaKitBuilder.global = window.MediaKitBuilder.global || {};
+
+// Define init function if it doesn't exist yet
+if (!window.MediaKitBuilder.init) {
+    window.MediaKitBuilder.init = function() {
+        console.log('MediaKitBuilder.init called from builder.js');
+        if (window.MediaKitBuilder.global.instance) {
+            window.MediaKitBuilder.global.instance.init();
+        } else {
+            console.log('MediaKitBuilder instance not found yet');
+            window.MediaKitBuilder.shouldInitialize = true;
+        }
+    };
+}
 
 (function($) {
     'use strict';
@@ -76,6 +91,11 @@ window.MediaKitBuilder.global = window.MediaKitBuilder.global || {};
          * Expose important properties and methods globally for cross-file access
          */
         exposePropertiesGlobally() {
+            // Make sure global namespace exists
+            if (!window.MediaKitBuilder.global) {
+                window.MediaKitBuilder.global = {};
+            }
+            
             // Store reference to this instance
             window.MediaKitBuilder.global.instance = this;
             
@@ -97,6 +117,8 @@ window.MediaKitBuilder.global = window.MediaKitBuilder.global || {};
             window.MediaKitBuilder.global.on = this.on.bind(this);
             window.MediaKitBuilder.global.off = this.off.bind(this);
             window.MediaKitBuilder.global.emit = this.emit.bind(this);
+            
+            console.log('Exposed MediaKitBuilder properties globally');
         }
         
         /**
@@ -114,9 +136,15 @@ window.MediaKitBuilder.global = window.MediaKitBuilder.global || {};
                 // Get DOM elements
                 this.cacheElements();
                 
-                // Check required elements
+                // Check required elements - use elements from initializer if available
+                if ((!this.elements.container || !this.elements.preview || !this.elements.palette) && window.MediaKitBuilder.elements) {
+                    console.log('Using elements from initializer');
+                    this.elements = window.MediaKitBuilder.elements;
+                }
+                
+                // Final check if elements exist
                 if (!this.elements.container || !this.elements.preview || !this.elements.palette) {
-                    console.warn('Required DOM elements not found. Builder containers might not be ready yet.');
+                    console.warn('Required DOM elements still not found. Builder containers might not be ready yet.');
                     this.setupDelayedInitialization();
                     return;
                 }
@@ -139,14 +167,14 @@ window.MediaKitBuilder.global = window.MediaKitBuilder.global || {};
                 // Update global references now that everything is initialized
                 this.exposePropertiesGlobally();
                     
-                    // Export global instance for backward compatibility
-                    window.mediaKitBuilder = this;
+                // Export global instance for backward compatibility
+                window.mediaKitBuilder = this;
                     
-                    // Expose initialization complete flag
-                    window.MediaKitBuilder.global.initialized = true;
+                // Expose initialization complete flag
+                window.MediaKitBuilder.global.initialized = true;
                     
-                    // Dispatch global event for other modules
-                    document.dispatchEvent(new CustomEvent('mediakit-builder-initialized', { detail: this }));
+                // Dispatch global event for other modules
+                document.dispatchEvent(new CustomEvent('mediakit-builder-initialized', { detail: this }));
             } catch (error) {
                 console.error('Error initializing Media Kit Builder:', error);
                 this.handleError(error, 'initialization');

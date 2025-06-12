@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Kit Builder Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .media-kit-builder {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-top: 20px;
+            min-height: 400px;
+            position: relative;
+        }
+        .media-kit-preview {
+            min-height: 300px;
+            border: 1px dashed #ccc;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .component-palette {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+        }
+        .component-item {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .component-item:hover {
+            background-color: #f0f0f0;
+            border-color: #aaa;
+        }
+        #save-btn, #export-btn {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        #save-btn:hover, #export-btn:hover {
+            background-color: #0055aa;
+        }
+        #save-status {
+            display: inline-block;
+            margin-left: 10px;
+            color: #666;
+        }
+        .console {
+            background-color: #222;
+            color: #0f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .console p {
+            margin: 0;
+            padding: 2px 0;
+            border-bottom: 1px solid #444;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .sidebar-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+        }
+        .sidebar-tab.active {
+            background-color: #fff;
+            border-bottom-color: #fff;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-top: none;
+            background-color: #fff;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Media Kit Builder Test</h1>
+        
+        <div id="media-kit-builder" class="media-kit-builder">
+            <div class="tabs">
+                <div class="sidebar-tab active" data-tab="components">Components</div>
+                <div class="sidebar-tab" data-tab="design">Design</div>
+                <div class="sidebar-tab" data-tab="layout">Layout</div>
+            </div>
+            
+            <div id="components-tab" class="tab-content active">
+                <div id="component-palette" class="component-palette">
+                    <div class="component-item" data-component="biography">Biography</div>
+                    <div class="component-item" data-component="topics">Topics</div>
+                    <div class="component-item" data-component="questions">Questions</div>
+                    <div class="component-item" data-component="social">Social Media</div>
+                    <div class="component-item" data-component="logo">Logo</div>
+                </div>
+            </div>
+            
+            <div id="design-tab" class="tab-content">
+                <div id="design-panel">
+                    <p>Select an element to edit its properties</p>
+                </div>
+            </div>
+            
+            <div id="layout-tab" class="tab-content">
+                <p>Layout options will appear here</p>
+            </div>
+            
+            <div id="media-kit-preview" class="media-kit-preview">
+                <!-- Preview content will be here -->
+            </div>
+            
+            <div class="actions">
+                <button id="save-btn">Save Media Kit</button>
+                <button id="export-btn">Export PDF</button>
+                <span id="save-status">Not saved</span>
+            </div>
+        </div>
+        
+        <div class="console" id="console">
+            <p>Console output will appear here</p>
+        </div>
+    </div>
+    
+    <script>
+        // Mock jQuery
+        window.jQuery = function(selector) {
+            return {
+                ready: function(callback) {
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', callback);
+                    } else {
+                        callback();
+                    }
+                }
+            };
+        };
+        window.$ = window.jQuery;
+        
+        // Mock WordPress data
+        window.mkbData = {
+            ajaxUrl: '/wp-admin/admin-ajax.php',
+            restUrl: '/wp-json/media-kit/v1/',
+            nonce: 'mock-nonce',
+            pluginUrl: '.',
+            debugMode: true
+        };
+        
+        // Console logging
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        const originalConsoleWarn = console.warn;
+        
+        function updateConsole(message, type = 'log') {
+            const consoleEl = document.getElementById('console');
+            const line = document.createElement('p');
+            line.textContent = message;
+            
+            if (type === 'error') {
+                line.style.color = '#ff5555';
+            } else if (type === 'warn') {
+                line.style.color = '#ffaa55';
+            }
+            
+            consoleEl.appendChild(line);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+        
+        console.log = function() {
+            const message = Array.from(arguments).map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg) : arg
+            ).join(' ');
+            updateConsole(message, 'log');
+            originalConsoleLog.apply(console, arguments);
+        };
+        
+        console.error = function() {
+            const message = Array.from(arguments).map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg) : arg
+            ).join(' ');
+            updateConsole(message, 'error');
+            originalConsoleError.apply(console, arguments);
+        };
+        
+        console.warn = function() {
+            const message = Array.from(arguments).map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg) : arg
+            ).join(' ');
+            updateConsole(message, 'warn');
+            originalConsoleWarn.apply(console, arguments);
+        };
+        
+        // Tab functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabs = document.querySelectorAll('.sidebar-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Remove active class from all tabs and contents
+                    tabs.forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    // Add active class to clicked tab and corresponding content
+                    tab.classList.add('active');
+                    const tabId = tab.getAttribute('data-tab');
+                    const tabContent = document.getElementById(tabId + '-tab');
+                    if (tabContent) {
+                        tabContent.classList.add('active');
+                    }
+                });
+            });
+            
+            // Load initializer
+            const script = document.createElement('script');
+            script.src = 'assets/js/initializer.js';
+            script.onload = function() {
+                console.log('Initializer loaded');
+                
+                // Load builder.js
+                const builderScript = document.createElement('script');
+                builderScript.src = 'assets/js/builder.js';
+                builderScript.onload = function() {
+                    console.log('Builder loaded');
+                    
+                    // Load WordPress adapter
+                    const wpScript = document.createElement('script');
+                    wpScript.src = 'assets/js/builder-wordpress.js';
+                    wpScript.onload = function() {
+                        console.log('WordPress adapter loaded');
+                    };
+                    document.head.appendChild(wpScript);
+                };
+                document.head.appendChild(builderScript);
+            };
+            document.head.appendChild(script);
+        });
+    </script>
+</body>
+</html>

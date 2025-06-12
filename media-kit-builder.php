@@ -1,11 +1,10 @@
 <?php
 /**
  * Plugin Name: Media Kit Builder
- * Description: A drag-and-drop builder for creating professional media kits
+ * Description: Create professional media kits with a drag-and-drop builder
  * Version: 1.0.0
  * Author: Guestify
  * Text Domain: media-kit-builder
- * Domain Path: /languages
  */
 
 // Exit if accessed directly
@@ -13,26 +12,23 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Define plugin constants
-define('MKB_VERSION', '1.0.0');
-define('MKB_PLUGIN_DIR', plugin_dir_path(__FILE__));
-define('MKB_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('MKB_PLUGIN_FILE', __FILE__);
+// Define constants
+define('MEDIA_KIT_BUILDER_VERSION', '1.0.0');
+define('MEDIA_KIT_BUILDER_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('MEDIA_KIT_BUILDER_PLUGIN_URL', plugin_dir_url(__FILE__));
 
 /**
- * Main plugin class
+ * Media Kit Builder Plugin Class
  */
 class Media_Kit_Builder {
     /**
      * Instance of this class
-     *
      * @var Media_Kit_Builder
      */
     private static $instance;
-
+    
     /**
      * Get instance of this class
-     *
      * @return Media_Kit_Builder
      */
     public static function instance() {
@@ -41,97 +37,468 @@ class Media_Kit_Builder {
         }
         return self::$instance;
     }
-
+    
     /**
      * Constructor
      */
-    public function __construct() {
-        // Load required files
+    private function __construct() {
+        // Include required files
         $this->includes();
         
-        // Register hooks
-        $this->init_hooks();
+        // Setup hooks
+        $this->setup_hooks();
     }
-
+    
     /**
      * Include required files
      */
     private function includes() {
-        // Core classes
-        require_once MKB_PLUGIN_DIR . 'includes/enqueue-scripts.php';
-        require_once MKB_PLUGIN_DIR . 'includes/class-api-endpoints.php';
-        require_once MKB_PLUGIN_DIR . 'includes/class-url-router.php';
-        
-        // Admin classes
+        // Include admin files
         if (is_admin()) {
-            require_once MKB_PLUGIN_DIR . 'includes/admin/class-admin-menu.php';
-            // Check if file exists before including
-            $builder_page_path = MKB_PLUGIN_DIR . 'includes/admin/class-builder-page.php';
-            if (file_exists($builder_page_path)) {
-                require_once $builder_page_path;
-            } else {
-                add_action('admin_notices', function() {
-                    echo '<div class="notice notice-error"><p>';
-                    echo esc_html__('Media Kit Builder: Missing required file class-builder-page.php', 'media-kit-builder');
-                    echo '</p></div>';
-                });
-            }
+            require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'admin/admin.php';
         }
         
         // Include AJAX handlers
-        require_once MKB_PLUGIN_DIR . 'includes/ajax/class-ajax-handlers.php';
+        require_once MEDIA_KIT_BUILDER_PLUGIN_DIR . 'ajax-handlers.php';
     }
-
+    
     /**
-     * Initialize hooks
+     * Setup hooks
      */
-    private function init_hooks() {
-        // Activation hook
-        register_activation_hook(MKB_PLUGIN_FILE, array($this, 'activate'));
+    private function setup_hooks() {
+        // Register activation and deactivation hooks
+        register_activation_hook(__FILE__, array($this, 'activate'));
+        register_deactivation_hook(__FILE__, array($this, 'deactivate'));
         
-        // Deactivation hook
-        register_deactivation_hook(MKB_PLUGIN_FILE, array($this, 'deactivate'));
+        // Enqueue scripts and styles
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_frontend_scripts'));
         
-        // Load textdomain
-        add_action('plugins_loaded', array($this, 'load_textdomain'));
+        // Load the initializer in the head of all pages to prevent errors
+        add_action('wp_head', array($this, 'load_initializer_in_head'));
+        add_action('admin_head', array($this, 'load_initializer_in_head'));
+        
+        // Add shortcode
+        add_shortcode('media_kit_builder', array($this, 'media_kit_builder_shortcode'));
     }
-
+    
     /**
-     * Activate plugin
+     * Activation hook
      */
     public function activate() {
-        // Include activation file
-        require_once MKB_PLUGIN_DIR . 'activation.php';
+        // Create database tables
+        $this->create_tables();
         
-        // Run activation functions
-        mkb_activate();
-        
-        // Flush rewrite rules
-        flush_rewrite_rules();
+        // Set default options
+        $this->set_default_options();
     }
-
+    
     /**
-     * Deactivate plugin
+     * Deactivation hook
      */
     public function deactivate() {
-        // Flush rewrite rules
-        flush_rewrite_rules();
+        // Cleanup tasks
     }
-
+    
     /**
-     * Load textdomain
+     * Create database tables
      */
-    public function load_textdomain() {
-        load_plugin_textdomain('media-kit-builder', false, dirname(plugin_basename(MKB_PLUGIN_FILE)) . '/languages');
+    private function create_tables() {
+        global $wpdb;
+        
+        // Table name
+        $table_name = $wpdb->prefix . 'media_kits';
+        
+        // Check if table exists
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+            // Create table
+            $charset_collate = $wpdb->get_charset_collate();
+            
+            $sql = "CREATE TABLE $table_name (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                entry_key varchar(255) NOT NULL,
+                user_id bigint(20) NOT NULL,
+                formidable_key varchar(255),
+                post_id bigint(20),
+                data longtext NOT NULL,
+                created datetime NOT NULL,
+                modified datetime NOT NULL,
+                PRIMARY KEY  (id),
+                UNIQUE KEY entry_key (entry_key),
+                KEY user_id (user_id)
+            ) $charset_collate;";
+            
+            require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+            dbDelta($sql);
+        }
     }
-}
-
-/**
- * Start the plugin
- */
-function mkb_init() {
-    return Media_Kit_Builder::instance();
+    
+    /**
+     * Set default options
+     */
+    private function set_default_options() {
+        // Set default options
+        $default_options = array(
+            'version' => MEDIA_KIT_BUILDER_VERSION,
+            'enable_guest_access' => true,
+            'enable_pdf_export' => true,
+            'enable_social_sharing' => true
+        );
+        
+        // Update options
+        update_option('media_kit_builder_options', $default_options);
+    }
+    
+    /**
+     * Enqueue admin scripts and styles
+     */
+    public function enqueue_admin_scripts($hook) {
+        // Only enqueue on our plugin page
+        if ($hook !== 'toplevel_page_media-kit-builder') {
+            return;
+        }
+        
+        // Enqueue jQuery UI
+        wp_enqueue_script('jquery-ui-core');
+        wp_enqueue_script('jquery-ui-sortable');
+        wp_enqueue_script('jquery-ui-draggable');
+        wp_enqueue_script('jquery-ui-droppable');
+        
+        // Enqueue WordPress media uploader
+        wp_enqueue_media();
+        
+        // CRITICAL: First load the standalone initializer to set up the global namespace
+        wp_enqueue_script(
+            'media-kit-builder-initializer',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/standalone-initializer.js',
+            array('jquery'),
+            MEDIA_KIT_BUILDER_VERSION,
+            false // Load in header, not footer
+        );
+        
+        // Enqueue main builder script
+        wp_enqueue_script(
+            'media-kit-builder',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder.js',
+            array('jquery', 'media-kit-builder-initializer'),
+            MEDIA_KIT_BUILDER_VERSION,
+            true
+        );
+        
+        // Enqueue WordPress adapter
+        wp_enqueue_script(
+            'media-kit-builder-wordpress',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder-wordpress.js',
+            array('jquery', 'media-kit-builder'),
+            MEDIA_KIT_BUILDER_VERSION,
+            true
+        );
+        
+        // Enqueue additional scripts
+        wp_enqueue_script(
+            'media-kit-builder-premium',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/premium-access-control.js',
+            array('jquery', 'media-kit-builder-wordpress'),
+            MEDIA_KIT_BUILDER_VERSION,
+            true
+        );
+        
+        wp_enqueue_script(
+            'media-kit-builder-templates',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/section-templates.js',
+            array('jquery', 'media-kit-builder-wordpress'),
+            MEDIA_KIT_BUILDER_VERSION,
+            true
+        );
+        
+        wp_enqueue_script(
+            'media-kit-builder-export',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/export.js',
+            array('jquery', 'media-kit-builder-wordpress'),
+            MEDIA_KIT_BUILDER_VERSION,
+            true
+        );
+        
+        // Enqueue debug helper if WP_DEBUG is enabled
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            wp_enqueue_script(
+                'media-kit-builder-debug',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/debug-helper.js',
+                array('jquery', 'media-kit-builder-wordpress'),
+                MEDIA_KIT_BUILDER_VERSION,
+                true
+            );
+        }
+        
+        // Enqueue styles
+        wp_enqueue_style(
+            'media-kit-builder',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/css/builder.css',
+            array(),
+            MEDIA_KIT_BUILDER_VERSION
+        );
+        
+        // Pass data to JavaScript
+        wp_localize_script('media-kit-builder-wordpress', 'mkbData', array(
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'restUrl' => rest_url('media-kit/v1/'),
+            'nonce' => wp_create_nonce('media_kit_builder_nonce'),
+            'restNonce' => wp_create_nonce('wp_rest'),
+            'userId' => get_current_user_id(),
+            'userCapabilities' => $this->get_user_capabilities(),
+            'isAdmin' => current_user_can('manage_options'),
+            'accessTier' => $this->get_user_access_tier(),
+            'pluginUrl' => MEDIA_KIT_BUILDER_PLUGIN_URL,
+            'assetsUrl' => MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/',
+            'debugMode' => defined('WP_DEBUG') && WP_DEBUG
+        ));
+    }
+    
+    /**
+     * Enqueue frontend scripts and styles
+     */
+    public function enqueue_frontend_scripts() {
+        // Only enqueue on pages with the shortcode
+        global $post;
+        if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'media_kit_builder')) {
+            // Enqueue jQuery UI
+            wp_enqueue_script('jquery-ui-core');
+            wp_enqueue_script('jquery-ui-sortable');
+            wp_enqueue_script('jquery-ui-draggable');
+            wp_enqueue_script('jquery-ui-droppable');
+            
+            // Enqueue WordPress media uploader
+            wp_enqueue_media();
+            
+            // CRITICAL: First load the standalone initializer to set up the global namespace
+            wp_enqueue_script(
+                'media-kit-builder-initializer',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/standalone-initializer.js',
+                array('jquery'),
+                MEDIA_KIT_BUILDER_VERSION,
+                false // Load in header, not footer
+            );
+            
+            // Enqueue builder script
+            wp_enqueue_script(
+                'media-kit-builder',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder.js',
+                array('jquery', 'media-kit-builder-initializer'),
+                MEDIA_KIT_BUILDER_VERSION,
+                true
+            );
+            
+            // Enqueue WordPress adapter
+            wp_enqueue_script(
+                'media-kit-builder-wordpress',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder-wordpress.js',
+                array('jquery', 'media-kit-builder'),
+                MEDIA_KIT_BUILDER_VERSION,
+                true
+            );
+            
+            // Enqueue additional scripts
+            wp_enqueue_script(
+                'media-kit-builder-premium',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/premium-access-control.js',
+                array('jquery', 'media-kit-builder-wordpress'),
+                MEDIA_KIT_BUILDER_VERSION,
+                true
+            );
+            
+            wp_enqueue_script(
+                'media-kit-builder-templates',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/section-templates.js',
+                array('jquery', 'media-kit-builder-wordpress'),
+                MEDIA_KIT_BUILDER_VERSION,
+                true
+            );
+            
+            wp_enqueue_script(
+                'media-kit-builder-export',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/export.js',
+                array('jquery', 'media-kit-builder-wordpress'),
+                MEDIA_KIT_BUILDER_VERSION,
+                true
+            );
+            
+            // Enqueue styles
+            wp_enqueue_style(
+                'media-kit-builder',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/css/builder.css',
+                array(),
+                MEDIA_KIT_BUILDER_VERSION
+            );
+            
+            // Pass data to JavaScript
+            wp_localize_script('media-kit-builder-wordpress', 'mkbData', array(
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+                'restUrl' => rest_url('media-kit/v1/'),
+                'nonce' => wp_create_nonce('media_kit_builder_nonce'),
+                'restNonce' => wp_create_nonce('wp_rest'),
+                'userId' => get_current_user_id(),
+                'userCapabilities' => $this->get_user_capabilities(),
+                'isAdmin' => current_user_can('manage_options'),
+                'accessTier' => $this->get_user_access_tier(),
+                'pluginUrl' => MEDIA_KIT_BUILDER_PLUGIN_URL,
+                'assetsUrl' => MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/',
+                'debugMode' => defined('WP_DEBUG') && WP_DEBUG
+            ));
+        }
+    }
+    
+    /**
+     * Get user capabilities
+     * @return array
+     */
+    private function get_user_capabilities() {
+        $capabilities = array(
+            'basic_components' => true
+        );
+        
+        // Check if user is logged in
+        if (is_user_logged_in()) {
+            $capabilities['save_kit'] = true;
+            
+            // Check if user has premium access
+            if ($this->has_premium_access()) {
+                $capabilities['premium_components'] = true;
+                $capabilities['premium_templates'] = true;
+                $capabilities['export_pdf'] = true;
+            }
+            
+            // Check if user has agency access
+            if ($this->has_agency_access()) {
+                $capabilities['white_label'] = true;
+            }
+        }
+        
+        return $capabilities;
+    }
+    
+    /**
+     * Get user access tier
+     * @return string
+     */
+    private function get_user_access_tier() {
+        // Default to guest
+        $tier = 'guest';
+        
+        // Check if user is logged in
+        if (is_user_logged_in()) {
+            $tier = 'free';
+            
+            // Check if WP Fusion is active
+            if (function_exists('wp_fusion')) {
+                // Get user tags
+                $user_tags = wp_fusion()->user->get_tags();
+                
+                // Check for agency tag
+                if (in_array('agency', $user_tags)) {
+                    $tier = 'agency';
+                }
+                // Check for pro tag
+                else if (in_array('pro', $user_tags)) {
+                    $tier = 'pro';
+                }
+            } else {
+                // Check for custom capabilities or roles
+                if (current_user_can('manage_options')) {
+                    $tier = 'agency';
+                } else if (current_user_can('edit_pages')) {
+                    $tier = 'pro';
+                }
+            }
+        }
+        
+        return $tier;
+    }
+    
+    /**
+     * Check if user has premium access
+     * @return boolean
+     */
+    private function has_premium_access() {
+        // Admin always has premium access
+        if (current_user_can('manage_options')) {
+            return true;
+        }
+        
+        // Check if WP Fusion is active
+        if (function_exists('wp_fusion')) {
+            // Get user tags
+            $user_tags = wp_fusion()->user->get_tags();
+            
+            // Check for premium tags
+            if (in_array('pro', $user_tags) || in_array('agency', $user_tags)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Check if user has agency access
+     * @return boolean
+     */
+    private function has_agency_access() {
+        // Admin always has agency access
+        if (current_user_can('manage_options')) {
+            return true;
+        }
+        
+        // Check if WP Fusion is active
+        if (function_exists('wp_fusion')) {
+            // Get user tags
+            $user_tags = wp_fusion()->user->get_tags();
+            
+            // Check for agency tag
+            if (in_array('agency', $user_tags)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Load initializer script in head
+     */
+    public function load_initializer_in_head() {
+        // Output the initializer directly in the head
+        echo '<script src="' . MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/standalone-initializer.js?ver=' . MEDIA_KIT_BUILDER_VERSION . '"></script>';
+    }
+    
+    /**
+     * Media Kit Builder shortcode
+     * @param array $atts
+     * @return string
+     */
+    public function media_kit_builder_shortcode($atts) {
+        // Parse attributes
+        $atts = shortcode_atts(array(
+            'entry_key' => '',
+            'formidable_key' => '',
+            'post_id' => '',
+            'template' => 'default'
+        ), $atts);
+        
+        // Start output buffering
+        ob_start();
+        
+        // Include builder template
+        include MEDIA_KIT_BUILDER_PLUGIN_DIR . 'templates/builder.php';
+        
+        // Return buffered content
+        return ob_get_clean();
+    }
 }
 
 // Initialize the plugin
-mkb_init();
+function media_kit_builder() {
+    return Media_Kit_Builder::instance();
+}
+
+// Start the plugin
+media_kit_builder();
