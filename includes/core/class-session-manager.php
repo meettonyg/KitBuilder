@@ -62,13 +62,16 @@ class MKB_Session_Manager {
         $this->table_name = $wpdb->prefix . 'mkb_guest_sessions';
         
         $this->init_hooks();
-        $this->init_session();
+        // We'll initialize the session via the 'init' hook instead of here
     }
     
     /**
      * Initialize hooks
      */
     private function init_hooks() {
+        // Hook the session initialization to run after WordPress is fully loaded
+        add_action('init', array($this, 'init_session'));
+        
         // AJAX hooks for session management
         add_action('wp_ajax_mkb_create_guest_session', array($this, 'ajax_create_guest_session'));
         add_action('wp_ajax_nopriv_mkb_create_guest_session', array($this, 'ajax_create_guest_session'));
@@ -140,7 +143,7 @@ class MKB_Session_Manager {
     /**
      * Initialize session
      */
-    private function init_session() {
+    public function init_session() {
         // For logged-in users, we don't need guest sessions
         if (is_user_logged_in()) {
             return;
