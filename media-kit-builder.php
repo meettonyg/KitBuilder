@@ -17,6 +17,15 @@ define('MKB_VERSION', '1.0.1');
 define('MKB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('MKB_PLUGIN_URL', plugin_dir_url(__FILE__));
 
+// CRITICAL: Define constants needed by the URL router
+define('MEDIA_KIT_BUILDER_FILE', __FILE__);
+define('MEDIA_KIT_BUILDER_PATH', plugin_dir_path(__FILE__));
+define('MEDIA_KIT_BUILDER_URL', plugin_dir_url(__FILE__));
+
+// CRITICAL: Initialize URL router early - before any other plugin functionality
+require_once MKB_PLUGIN_DIR . 'includes/class-url-router.php';
+$media_kit_builder_router = new Media_Kit_Builder_URL_Router();
+
 /**
  * Final Media Kit Builder Class
  *
@@ -70,9 +79,7 @@ final class Media_Kit_Builder {
         // API Endpoints
         require_once MKB_PLUGIN_DIR . 'includes/core/class-api-endpoints.php';
 
-        // THE MOST IMPORTANT PART: The URL Router
-        // This MUST be loaded for the builder to function correctly on the front-end.
-        require_once MKB_PLUGIN_DIR . 'includes/class-url-router.php';
+        // NOTE: URL Router is already loaded at the top of the file
     }
 
     /**
