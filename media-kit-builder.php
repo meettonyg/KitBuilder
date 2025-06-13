@@ -203,16 +203,25 @@ class Media_Kit_Builder {
             false // Load in header, not footer
         );
         
-        // Enqueue main builder script
+        // STEP 2: Load the regular initializer
+        wp_enqueue_script(
+            'media-kit-builder-initializer-full',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/initializer.js',
+            array('jquery', 'media-kit-builder-initializer'),
+            MEDIA_KIT_BUILDER_VERSION,
+            false // Load in header
+        );
+        
+        // STEP 3: Enqueue main builder script
         wp_enqueue_script(
             'media-kit-builder',
             MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder.js',
-            array('jquery', 'media-kit-builder-initializer'),
+            array('jquery', 'media-kit-builder-initializer', 'media-kit-builder-initializer-full'),
             MEDIA_KIT_BUILDER_VERSION,
             true
         );
         
-        // Enqueue WordPress adapter
+        // STEP 4: Enqueue WordPress adapter
         wp_enqueue_script(
             'media-kit-builder-wordpress',
             MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder-wordpress.js',
@@ -332,16 +341,25 @@ class Media_Kit_Builder {
                 false // Load in header, not footer
             );
             
-            // Enqueue builder script
+            // STEP 2: Load the regular initializer
+            wp_enqueue_script(
+                'media-kit-builder-initializer-full',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/initializer.js',
+                array('jquery', 'media-kit-builder-initializer'),
+                MEDIA_KIT_BUILDER_VERSION,
+                false // Load in header
+            );
+            
+            // STEP 3: Enqueue main builder script
             wp_enqueue_script(
                 'media-kit-builder',
                 MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder.js',
-                array('jquery', 'media-kit-builder-initializer'),
+                array('jquery', 'media-kit-builder-initializer', 'media-kit-builder-initializer-full'),
                 MEDIA_KIT_BUILDER_VERSION,
                 true
             );
             
-            // Enqueue WordPress adapter
+            // STEP 4: Enqueue WordPress adapter
             wp_enqueue_script(
                 'media-kit-builder-wordpress',
                 MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder-wordpress.js',

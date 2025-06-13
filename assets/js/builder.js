@@ -32,6 +32,7 @@ if (!window.MediaKitBuilder.init) {
 if (typeof window.MediaKitBuilder !== 'function') {
     // Keep a copy of the current MediaKitBuilder object if it exists
     const oldMediaKitBuilder = window.MediaKitBuilder;
+}
 
 (function($) {
     'use strict';
@@ -1182,6 +1183,29 @@ if (typeof window.MediaKitBuilder !== 'function') {
         }
         
         /**
+         * Error handling function
+         * @param {Error} error - Error object
+         * @param {string} context - Error context
+         */
+        handleError(error, context = '') {
+            console.error(`MediaKitBuilder Error${context ? ' (' + context + ')' : ''}:`, error);
+            
+            if (this.state && Array.isArray(this.state.errors)) {
+                this.state.errors.push({
+                    message: error.message || String(error),
+                    context: context,
+                    timestamp: new Date().toISOString()
+                });
+            }
+            
+            if (this.emit) {
+                this.emit('error', { error, context });
+            }
+            
+            return false;
+        }
+        
+        /**
          * Select an element
          * @param {HTMLElement} element - Element to select
          */
@@ -2292,7 +2316,431 @@ if (typeof window.MediaKitBuilder !== 'function') {
                 // Clear selection state
                 this.state.selectedElement = null;
                 this.state.selectedSection = null;
+            } catch (error) {
+                this.handleError(error, 'clear builder');
+            }
+        }
+        
+        /**
+         * Populate builder with state
+         * @param {Object} state - Builder state
+         */
+        populateBuilder(state) {
+            try {
+                console.log('Populating builder with state:', state);
                 
+                if (!state || !state.sections) {
+                    console.warn('Invalid state or missing sections');
+                    this.createInitialDropZone();
+                    return;
+                }
+                
+                // Store components for reference during section creation
+                const componentsData = state.components || {};
+                
+                // Create sections
+                state.sections.forEach(sectionData => {
+                    // Add components data to section data for reference
+                    sectionData.componentsData = componentsData;
+                    this.createSection(sectionData);
+                });
+                
+                // If no sections were created, create initial drop zone
+                if (!this.elements.preview.querySelector('.media-kit-section')) {
+                    this.createInitialDropZone();
+                }
+                
+                console.log('Builder populated successfully');
+            } catch (error) {
+                this.handleError(error, 'populate builder');
+                
+                // Create initial drop zone as fallback
+                this.createInitialDropZone();
+            }
+        }
+        
+        /**
+         * Create section from data
+         * @param {Object} sectionData - Section data
+         */
+        createSection(sectionData) {
+            try {
+                console.log('Creating section:', sectionData);
+                
+                // Create section element
+                const section = document.createElement('div');
+                section.className = 'media-kit-section';
+                section.setAttribute('data-section-id', sectionData.id);
+                section.setAttribute('data-section-type', sectionData.type || 'content');
+                section.setAttribute('data-section-layout', sectionData.layout || 'full-width');
+                
+                // Apply section settings
+                if (sectionData.settings) {
+                    section.style.backgroundColor = sectionData.settings.background || '#ffffff';
+                    section.style.paddingTop = (sectionData.settings.padding && sectionData.settings.padding.top) || '48px';
+                    section.style.paddingBottom = (sectionData.settings.padding && sectionData.settings.padding.bottom) || '48px';
+                }
+                
+                // Create section content container
+                const sectionContent = document.createElement('div');
+                sectionContent.className = `section-content layout-${sectionData.layout || 'full-width'}`;
+                
+                // Create columns based on layout
+                if (sectionData.layout === 'two-column' || sectionData.layout === 'three-column') {
+                    // Create multi-column layout
+                    const columnTypes = sectionData.layout === 'two-column' ? ['left', 'right'] : ['left', 'center', 'right'];
+                    
+                    columnTypes.forEach(columnType => {
+                        const column = document.createElement('div');
+                        column.className = 'section-column';
+                        column.setAttribute('data-column', columnType);
+                        
+                        // Create drop zone
+                        const dropZone = document.createElement('div');
+                        dropZone.className = 'drop-zone';
+                        dropZone.setAttribute('data-zone', `zone-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`);
+                        
+                            // Add components to this column
+                            if (sectionData.components && sectionData.components[columnType]) {
+                                const componentIds = sectionData.components[columnType];
+                                componentIds.forEach(componentId => {
+                                    if (componentId && sectionData.componentsData && sectionData.componentsData[componentId]) {
+                                        const componentData = sectionData.componentsData[componentId];
+                                        this.createComponentFromData(dropZone, componentData);
+                                    }
+                                });
+                            }
+                        
+                        // Add empty state if no components
+                        if (!dropZone.querySelector('.editable-element')) {
+                            dropZone.classList.add('empty');
+                            
+                            const emptyState = document.createElement('div');
+                            emptyState.className = 'empty-state';
+                            emptyState.innerHTML = `<div class="empty-state-icon">📝</div><div class="empty-state-title">Empty Area</div><div class="empty-state-desc">Drag components here</div>`;
+                            
+                            dropZone.appendChild(emptyState);
+                        }
+                        
+                        column.appendChild(dropZone);
+                        sectionContent.appendChild(column);
+                    });
+                } else {
+                    // Create full-width layout
+                    const column = document.createElement('div');
+                    column.className = 'section-column';
+                    column.setAttribute('data-column', 'full');
+                    
+                    // Create drop zone
+                    const dropZone = document.createElement('div');
+                    dropZone.className = 'drop-zone';
+                    dropZone.setAttribute('data-zone', `zone-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`);
+                    
+                    // Add components
+                    if (Array.isArray(sectionData.components)) {
+                        sectionData.components.forEach(componentId => {
+                            if (componentId && sectionData.componentsData && sectionData.componentsData[componentId]) {
+                                const componentData = sectionData.componentsData[componentId];
+                                this.createComponentFromData(dropZone, componentData);
+                            }
+                        });
+                    }
+                    
+                    // Add empty state if no components
+                    if (!dropZone.querySelector('.editable-element')) {
+                        dropZone.classList.add('empty');
+                        
+                        const emptyState = document.createElement('div');
+                        emptyState.className = 'empty-state';
+                        emptyState.innerHTML = `<div class="empty-state-icon">📝</div><div class="empty-state-title">Your Media Kit is Empty</div><div class="empty-state-desc">Drag components from the sidebar or click the "Add Component" button to get started.</div>`;
+                        
+                        dropZone.appendChild(emptyState);
+                    }
+                    
+                    column.appendChild(dropZone);
+                    sectionContent.appendChild(column);
+                }
+                
+                // Add section content to section
+                section.appendChild(sectionContent);
+                
+                // Add section to preview
+                this.elements.preview.appendChild(section);
+                
+                // Setup drop zones in the section
+                this.setupDragAndDrop();
+                
+                console.log('Section created successfully');
+                return section;
+            } catch (error) {
+                this.handleError(error, 'create section');
+                return null;
+            }
+        }
+        
+        /**
+         * Create component from data
+         * @param {HTMLElement} dropZone - Drop zone to add component to
+         * @param {Object} componentData - Component data
+         */
+        createComponentFromData(dropZone, componentData) {
+            try {
+                if (!componentData || !componentData.type) {
+                    console.warn('Invalid component data');
+                    return null;
+                }
+                
+                // Get template
+                const template = this.getComponentTemplate(componentData.type);
+                if (!template) {
+                    console.warn(`Template not found for component type: ${componentData.type}`);
+                    return null;
+                }
+                
+                // Create component element
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = template;
+                const component = tempDiv.firstElementChild;
+                
+                if (!component) {
+                    console.warn('Failed to create component element');
+                    return null;
+                }
+                
+                // Set component ID
+                component.setAttribute('data-component-id', componentData.id);
+                
+                // Apply content
+                this.applyComponentContent(component, componentData.content);
+                
+                // Apply styles
+                this.applyComponentStyles(component, componentData.styles);
+                
+                // Add to drop zone
+                dropZone.appendChild(component);
+                dropZone.classList.remove('empty');
+                
+                // Remove empty state if present
+                const emptyState = dropZone.querySelector('.empty-state');
+                if (emptyState) {
+                    emptyState.remove();
+                }
+                
+                // Setup event listeners
+                this.setupElementEventListeners(component);
+                
+                console.log(`Component ${componentData.type} created from data`);
+                return component;
+            } catch (error) {
+                this.handleError(error, 'create component from data');
+                return null;
+            }
+        }
+        
+        /**
+         * Apply component content
+         * @param {HTMLElement} component - Component element
+         * @param {Object} content - Component content
+         */
+        applyComponentContent(component, content) {
+            try {
+                if (!component || !content) return;
+                
+                const componentType = component.getAttribute('data-component');
+                
+                // Apply biography content
+                if (componentType === 'biography' && content.text) {
+                    const bioContent = component.querySelector('.editable-content');
+                    if (bioContent) {
+                        bioContent.innerHTML = content.text;
+                    }
+                }
+                
+                // Apply topics content
+                else if (componentType === 'topics' && Array.isArray(content.topics)) {
+                    const topicsContainer = component.querySelector('.topics-container');
+                    const addButton = component.querySelector('.add-topic');
+                    
+                    if (topicsContainer && addButton) {
+                        // Remove existing topics
+                        const existingTopics = topicsContainer.querySelectorAll('.topic-item');
+                        existingTopics.forEach(topic => topic.remove());
+                        
+                        // Add topics from content
+                        content.topics.forEach(topic => {
+                            const topicItem = document.createElement('div');
+                            topicItem.className = 'topic-item';
+                            topicItem.innerHTML = `<div class="topic-text" contenteditable="true">${topic}</div>`;
+                            
+                            // Insert before add button
+                            topicsContainer.insertBefore(topicItem, addButton);
+                            
+                            // Setup contenteditable
+                            const textElement = topicItem.querySelector('.topic-text');
+                            textElement.addEventListener('input', () => this.markDirty());
+                            textElement.addEventListener('blur', () => this.saveStateToHistory());
+                        });
+                    }
+                }
+                
+                // Apply questions content
+                else if (componentType === 'questions' && Array.isArray(content.questions)) {
+                    const questionsContainer = component.querySelector('.questions-container');
+                    const addButton = component.querySelector('.add-question');
+                    
+                    if (questionsContainer && addButton) {
+                        // Remove existing questions
+                        const existingQuestions = questionsContainer.querySelectorAll('.question-item');
+                        existingQuestions.forEach(question => question.remove());
+                        
+                        // Add questions from content
+                        content.questions.forEach(question => {
+                            const questionItem = document.createElement('div');
+                            questionItem.className = 'question-item';
+                            questionItem.innerHTML = `<div class="question-text" contenteditable="true">${question}</div>`;
+                            
+                            // Insert before add button
+                            questionsContainer.insertBefore(questionItem, addButton);
+                            
+                            // Setup contenteditable
+                            const textElement = questionItem.querySelector('.question-text');
+                            textElement.addEventListener('input', () => this.markDirty());
+                            textElement.addEventListener('blur', () => this.saveStateToHistory());
+                        });
+                    }
+                }
+                
+                // Apply social content
+                else if (componentType === 'social' && Array.isArray(content.platforms)) {
+                    const socialContainer = component.querySelector('.social-container');
+                    const addButton = component.querySelector('.add-social');
+                    
+                    if (socialContainer && addButton) {
+                        // Remove existing social items
+                        const existingItems = socialContainer.querySelectorAll('.social-item');
+                        existingItems.forEach(item => item.remove());
+                        
+                        // Add platforms from content
+                        content.platforms.forEach(platform => {
+                            const socialItem = document.createElement('div');
+                            socialItem.className = 'social-item';
+                            
+                            if (platform.platform === 'Other') {
+                                socialItem.innerHTML = `
+                                    <div class="social-platform"><input type="text" class="platform-input" value="${platform.platform}"></div>
+                                    <div class="social-link" contenteditable="true">${platform.link || 'https://'}</div>
+                                `;
+                            } else {
+                                socialItem.innerHTML = `
+                                    <div class="social-platform">${platform.platform}</div>
+                                    <div class="social-link" contenteditable="true">${platform.link || 'https://'}</div>
+                                `;
+                            }
+                            
+                            // Insert before add button
+                            socialContainer.insertBefore(socialItem, addButton);
+                            
+                            // Setup contenteditable
+                            const linkElement = socialItem.querySelector('.social-link');
+                            linkElement.addEventListener('input', () => this.markDirty());
+                            linkElement.addEventListener('blur', () => this.saveStateToHistory());
+                            
+                            // Setup input if present
+                            const inputElement = socialItem.querySelector('.platform-input');
+                            if (inputElement) {
+                                inputElement.addEventListener('input', () => this.markDirty());
+                                inputElement.addEventListener('blur', () => this.saveStateToHistory());
+                            }
+                        });
+                    }
+                }
+                
+                // Apply logo content
+                else if (componentType === 'logo' && content.url) {
+                    const logoContainer = component.querySelector('.logo-container');
+                    if (logoContainer) {
+                        logoContainer.innerHTML = `
+                            <img src="${content.url}" alt="${content.alt || 'Logo'}" class="logo-image">
+                            <div class="upload-button">Change Logo</div>
+                        `;
+                    }
+                }
+            } catch (error) {
+                this.handleError(error, 'apply component content');
+            }
+        }
+        
+        /**
+         * Apply component styles
+         * @param {HTMLElement} component - Component element
+         * @param {Object} styles - Component styles
+         */
+        applyComponentStyles(component, styles) {
+            try {
+                if (!component || !styles) return;
+                
+                // Apply inline styles
+                Object.entries(styles).forEach(([prop, value]) => {
+                    // Skip special attributes
+                    if (['columns', 'style', 'size'].includes(prop)) return;
+                    
+                    // Apply style
+                    component.style[prop] = value;
+                });
+                
+                // Apply special attributes
+                if (styles.columns) {
+                    component.setAttribute('data-columns', styles.columns);
+                    
+                    // Apply column layout to topics container
+                    if (component.getAttribute('data-component') === 'topics') {
+                        const topicsContainer = component.querySelector('.topics-container');
+                        if (topicsContainer) {
+                            topicsContainer.style.gridTemplateColumns = `repeat(${styles.columns}, 1fr)`;
+                        }
+                    }
+                }
+                
+                if (styles.style) {
+                    component.setAttribute('data-style', styles.style);
+                    
+                    // Apply styles based on component type
+                    const componentType = component.getAttribute('data-component');
+                    if (componentType === 'topics') {
+                        const topicItems = component.querySelectorAll('.topic-item');
+                        topicItems.forEach(item => {
+                            item.className = `topic-item style-${styles.style}`;
+                        });
+                    } else if (componentType === 'questions') {
+                        const container = component.querySelector('.questions-container');
+                        if (container) {
+                            container.className = `questions-container style-${styles.style}`;
+                        }
+                    } else if (componentType === 'social') {
+                        const container = component.querySelector('.social-container');
+                        if (container) {
+                            container.className = `social-container style-${styles.style}`;
+                        }
+                    }
+                }
+                
+                if (styles.size) {
+                    component.setAttribute('data-size', styles.size);
+                    
+                    // Apply size based on component type
+                    const componentType = component.getAttribute('data-component');
+                    if (componentType === 'social') {
+                        const socialItems = component.querySelectorAll('.social-item');
+                        socialItems.forEach(item => {
+                            item.className = `social-item size-${styles.size}`;
+                        });
+                    }
+                }
+            } catch (error) {
+                this.handleError(error, 'apply component styles');
+            }
+        }
+        
                 // Clear design panel
                 this.clearDesignPanel();
             } catch (error) {
