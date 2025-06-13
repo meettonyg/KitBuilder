@@ -1,11 +1,9 @@
 /**
  * Architectural Validation Suite - Refactoring Validation
  * Comprehensive testing for validating architectural changes
- * 
- * Tests the complete integration of refactored components and fixes
+ * * Tests the complete integration of refactored components and fixes
  * Ensures all systems work correctly with the new architecture
- * 
- * @package MediaKitBuilder
+ * * @package MediaKitBuilder
  * @since 1.0.0
  */
 
@@ -416,7 +414,7 @@ class ArchitecturalValidator {
             });
         });
         
-        summary.successRate = Math.round((summary.passedTests / summary.totalTests) * 100);
+        summary.successRate = summary.totalTests > 0 ? Math.round((summary.passedTests / summary.totalTests) * 100) : 0;
         
         return summary;
     }
@@ -893,6 +891,8 @@ class ArchitecturalValidator {
     createEventTracker() {
         const emittedEvents = {};
         
+        if(!window.mediaKitBuilder) return { wasEmitted: () => false }; // Graceful failure
+
         // Track MediaKitBuilder events
         const originalEmit = window.mediaKitBuilder.emit;
         window.mediaKitBuilder.emit = function(event, data) {
@@ -919,11 +919,16 @@ class ArchitecturalValidator {
 document.addEventListener('DOMContentLoaded', () => {
     if (window.location.search.includes('validate') || window.mkbConfig?.debug) {
         setTimeout(() => {
-            window.architecturalValidator = new ArchitecturalValidator();
-            window.architecturalValidator.runValidation().then(report => {
-                window.validationReport = report;
-                console.log('🎉 Architectural validation complete! Check window.validationReport for details.');
-            });
+            // Check for dependent objects before initializing
+            if (typeof MediaKitBuilder !== 'undefined' && window.mediaKitBuilder) {
+                 window.architecturalValidator = new ArchitecturalValidator();
+                 window.architecturalValidator.runValidation().then(report => {
+                    window.validationReport = report;
+                    console.log('🎉 Architectural validation complete! Check window.validationReport for details.');
+                });
+            } else {
+                console.error("ArchitecturalValidator Error: MediaKitBuilder or its instance is not available. Cannot run tests.");
+            }
         }, 2000); // Wait for app to initialize
     }
 });
