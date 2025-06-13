@@ -1,0 +1,78 @@
+/**
+ * Base CSS Reset for Media Kit Builder
+ */
+
+.mkb-container *,
+.mkb-container *::before,
+.mkb-container *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.mkb-container {
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  color: var(--color-text);
+  background-color: var(--color-background);
+}
+
+.mkb-container button,
+.mkb-container input,
+.mkb-container select,
+.mkb-container textarea {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+.mkb-container a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.mkb-container a:hover {
+  text-decoration: underline;
+}
+
+.mkb-container img,
+.mkb-container svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.mkb-container button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.mkb-container ul,
+.mkb-container ol {
+  list-style: none;
+}
+
+/* Utility classes */
+.mkb-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.mkb-hidden {
+  display: none !important;
+}
+
+.mkb-visually-hidden {
+  visibility: hidden !important;
+}

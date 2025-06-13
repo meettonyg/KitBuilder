@@ -1,0 +1,89 @@
+/* Biography component styles */
+
+.container {
+  background-color: var(--color-background);
+  border-radius: var(--border-radius-md);
+  border: var(--border-width-thin) solid var(--color-border);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-fast);
+}
+
+.container:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: var(--border-width-thin) solid var(--color-border);
+}
+
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.controls {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.controlBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--border-radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text-light);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.controlBtn:hover {
+  background-color: var(--color-primary-light);
+  color: var(--color-text-inverted);
+}
+
+.moveUpBtn:hover,
+.moveDownBtn:hover {
+  background-color: var(--color-secondary-light);
+}
+
+.deleteBtn:hover {
+  background-color: var(--color-error);
+}
+
+.duplicateBtn:hover {
+  background-color: var(--color-success);
+}
+
+.content {
+  padding: var(--spacing-sm);
+  min-height: 100px;
+  border-radius: var(--border-radius-sm);
+  border: var(--border-width-thin) solid var(--color-border);
+  background-color: var(--color-surface);
+  outline: none;
+}
+
+.content:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+.imageContainer {
+  margin-bottom: var(--spacing-md);
+}
+
+.imageContainer img {
+  width: 100%;
+  height: auto;
+  border-radius: var(--border-radius-md);
+}

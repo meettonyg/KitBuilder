@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Media Kit Builder - Simple AJAX Test</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Media Kit Builder - Simple AJAX Test</h1>
+    
+    <div id="results"></div>
+    
+    <button id="test-basic">Test Basic Handler</button>
+    <button id="test-direct">Test Direct Handler</button>
+    
+    <script>
+        // Display results
+        function displayResult(title, data) {
+            const resultDiv = document.getElementById('results');
+            const resultElement = document.createElement('div');
+            resultElement.innerHTML = `
+                <h3>${title}</h3>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+                <hr>
+            `;
+            resultDiv.appendChild(resultElement);
+        }
+        
+        // Test basic handler
+        document.getElementById('test-basic').addEventListener('click', function() {
+            fetch('./basic.php')
+                .then(response => response.json())
+                .then(data => {
+                    displayResult('Basic Handler Response', data);
+                })
+                .catch(error => {
+                    displayResult('Basic Handler Error', { error: error.message });
+                });
+        });
+        
+        // Test direct handler
+        document.getElementById('test-direct').addEventListener('click', function() {
+            fetch('./direct-ajax.php?action=mkb_test_connection')
+                .then(response => response.json())
+                .then(data => {
+                    displayResult('Direct Handler Response', data);
+                })
+                .catch(error => {
+                    displayResult('Direct Handler Error', { error: error.message });
+                });
+        });
+    </script>
+</body>
+</html>

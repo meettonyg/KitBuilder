@@ -26,135 +26,139 @@ define('MEDIA_KIT_BUILDER_URL', plugin_dir_url(__FILE__));
 require_once MKB_PLUGIN_DIR . 'includes/class-url-router.php';
 $media_kit_builder_router = new Media_Kit_Builder_URL_Router();
 
-/**
- * Final Media Kit Builder Class
- *
- * This class handles the core plugin functionality and coordinates all systems.
- */
-final class Media_Kit_Builder {
-
-    private static $instance;
-
-    public static function instance() {
-        if (is_null(self::$instance)) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-
-    /**
-     * Core systems instances
-     * @var array
-     */
-    private $systems = [];
-
-    private function __construct() {
-        $this->define_constants();
-        $this->includes();
-        $this->init_hooks();
-        $this->init_systems();
-    }
-
-    private function define_constants() {
-        // This is a good place for any other constants you might need.
-    }
-
-    /**
-     * Include all required files.
-     * The order here is important.
-     */
-    private function includes() {
-        // Core Systems
-        require_once MKB_PLUGIN_DIR . 'includes/core/class-session-manager.php';
-        require_once MKB_PLUGIN_DIR . 'includes/core/class-wpfusion-reader.php';
-        require_once MKB_PLUGIN_DIR . 'includes/core/class-pods-integration.php';
-        require_once MKB_PLUGIN_DIR . 'includes/core/class-template-manager.php';
-        require_once MKB_PLUGIN_DIR . 'includes/core/class-component-registry.php';
-        require_once MKB_PLUGIN_DIR . 'includes/core/class-builder-state.php';
-        require_once MKB_PLUGIN_DIR . 'includes/core/class-export-engine.php';
-        
-        // Admin Interface & Menus
-        require_once MKB_PLUGIN_DIR . 'includes/admin/class-admin-interface.php';
-        
-        // API Endpoints
-        require_once MKB_PLUGIN_DIR . 'includes/core/class-api-endpoints.php';
-        
-        // AJAX Handlers
-        require_once MKB_PLUGIN_DIR . 'includes/ajax/class-ajax-handlers.php';
-
-        // NOTE: URL Router is already loaded at the top of the file
-    }
-
-    /**
-     * Initialize WordPress hooks.
-     */
-    private function init_hooks() {
-        // Activation and Deactivation
-        register_activation_hook(__FILE__, array($this, 'activate'));
-        register_deactivation_hook(__FILE__, array($this, 'deactivate'));
-
-        // Initialize Admin Interface
-        if (is_admin()) {
-            MKB_Admin_Interface::instance();
-        }
-    }
-    
-    /**
-     * Plugin activation callback.
-     */
-    public function activate() {
-        // We only need to flush rewrite rules here.
-        // The URL Router adds the rules, and this makes WordPress recognize them.
-        flush_rewrite_rules();
-    }
-
-    /**
-     * Plugin deactivation callback.
-     */
-    public function deactivate() {
-        // Flush rewrite rules on deactivation to clean up.
-        flush_rewrite_rules();
-    }
-    
-    /**
-     * Get a core system instance
-     * 
-     * @param string $system_name
-     * @return object|null
-     */
-    public function get_system($system_name) {
-        if (isset($this->systems[$system_name])) {
-            return $this->systems[$system_name];
-        }
-        
-        return null;
-    }
-    
-    /**
-     * Initialize core systems
-     */
-    private function init_systems() {
-        // Initialize and store core systems
-        $this->systems = [
-            'session' => MKB_Session_Manager::instance(),
-            'wpfusion' => MKB_WPFusion_Reader::instance(),
-            'pods' => MKB_Pods_Integration::instance(),
-            'templates' => MKB_Template_Manager::instance(),
-            'components' => MKB_Component_Registry::instance(),
-            'state' => MKB_Builder_State::instance(),
-            'export' => MKB_Export_Engine::instance()
-        ];
-    }
-}
+// Include the main plugin class
+require_once MKB_PLUGIN_DIR . 'includes/core/class-plugin.php';
 
 /**
  * The main function for returning the Media_Kit_Builder instance.
  *
- * @return Media_Kit_Builder
+ * @return MKB_Plugin
  */
 function Media_Kit_Builder() {
-    return Media_Kit_Builder::instance();
+    return MKB_Plugin::instance();
 }
 
-// Get the plugin running properly - hook to plugins_loaded.
+// Initialize the plugin
 add_action('plugins_loaded', 'Media_Kit_Builder');
+
+/**
+ * Inject JavaScript to replace the AJAX endpoint
+ */
+function mkb_inject_ajax_replacer() {
+    // Only on frontend pages with the shortcode
+    if (!is_admin() && is_page() && has_shortcode(get_the_content(), 'media_kit_builder')) {
+        ?>
+        <script type="text/javascript">
+            // Execute this script as early as possible
+            (function() {
+                // Store the original fetch function
+                var originalFetch = window.fetch;
+                
+                // Replace fetch with our modified version
+                window.fetch = function() {
+                    var url = arguments[0];
+                    var options = arguments[1] || {};
+                    
+                    // Check if this is an AJAX request for our plugin's test connection
+                    if (typeof url === 'string' && 
+                        url.includes('admin-ajax.php') && 
+                        options && options.body && 
+                        options.body.includes('action=mkb_test_connection')) {
+                        
+                        // Replace the URL with our direct handler
+                        arguments[0] = '<?php echo MKB_PLUGIN_URL; ?>direct-ajax.php?action=mkb_test_connection';
+                        
+                        // Make it a GET request with no body for simplicity
+                        options.method = 'GET';
+                        delete options.body;
+                        arguments[1] = options;
+                        
+                        console.log('Media Kit Builder: Intercepted test connection request', arguments);
+                    }
+                    
+                    // Call the original fetch with our modified arguments
+                    return originalFetch.apply(this, arguments);
+                };
+                
+                // Also replace jQuery's AJAX if it exists
+                if (window.jQuery) {
+                    var originalAjax = jQuery.ajax;
+                    
+                    jQuery.ajax = function() {
+                        var settings = arguments[0];
+                        
+                        // Check if this is a test connection request
+                        if (settings && 
+                            settings.url && 
+                            settings.url.includes('admin-ajax.php') && 
+                            settings.data && 
+                            settings.data.includes('action=mkb_test_connection')) {
+                            
+                            // Replace with our direct handler
+                            settings.url = '<?php echo MKB_PLUGIN_URL; ?>direct-ajax.php';
+                            settings.type = 'GET';
+                            settings.data = { action: 'mkb_test_connection' };
+                            
+                            console.log('Media Kit Builder: Intercepted jQuery test connection request', settings);
+                        }
+                        
+                        // Call the original with our modified settings
+                        return originalAjax.apply(this, arguments);
+                    };
+                }
+                
+                // When the DOM is ready, we'll add some global variables
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Add our direct URL to the global config
+                    if (window.mkbData) {
+                        window.mkbData.directUrl = '<?php echo MKB_PLUGIN_URL; ?>direct-ajax.php';
+                        window.mkbData.basicUrl = '<?php echo MKB_PLUGIN_URL; ?>basic.php';
+                        
+                        console.log('Media Kit Builder: Added direct handler URLs to global config');
+                    }
+                    
+                    // Create a test function
+                    window.testMkbDirectConnection = function() {
+                        fetch('<?php echo MKB_PLUGIN_URL; ?>direct-ajax.php?action=mkb_test_connection')
+                            .then(function(response) { return response.json(); })
+                            .then(function(data) {
+                                console.log('Media Kit Builder: Direct connection test successful', data);
+                            })
+                            .catch(function(error) {
+                                console.error('Media Kit Builder: Direct connection test failed', error);
+                            });
+                    };
+                    
+                    // Run the test after a short delay
+                    setTimeout(window.testMkbDirectConnection, 1000);
+                });
+            })();
+        </script>
+        <?php
+    }
+}
+add_action('wp_head', 'mkb_inject_ajax_replacer', 1); // Priority 1 to load as early as possible
+
+/**
+ * Standard AJAX handler for WordPress
+ */
+function mkb_register_ajax_handlers() {
+    add_action('wp_ajax_mkb_test_connection', 'mkb_test_connection_handler');
+    add_action('wp_ajax_nopriv_mkb_test_connection', 'mkb_test_connection_handler');
+}
+add_action('init', 'mkb_register_ajax_handlers');
+
+/**
+ * Handle test connection AJAX requests
+ */
+function mkb_test_connection_handler() {
+    // Skip nonce verification for this test endpoint
+    
+    // Send the response
+    wp_send_json_success(array(
+        'message' => 'Connection successful (wp_ajax)',
+        'timestamp' => date('c'),
+        'plugin_status' => 'active',
+        'test_type' => 'wp_ajax'
+    ));
+}

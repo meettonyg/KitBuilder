@@ -1,0 +1,30 @@
+/**
+ * Dark theme for Media Kit Builder
+ */
+
+:root.theme-dark {
+  /* Colors */
+  --color-primary: #0ea5e9;
+  --color-primary-light: #38bdf8;
+  --color-primary-dark: #0284c7;
+  
+  --color-secondary: #a78bfa;
+  --color-secondary-light: #c4b5fd;
+  --color-secondary-dark: #7c3aed;
+  
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  
+  --color-background: #1f2937;
+  --color-surface: #374151;
+  --color-border: #4b5563;
+  
+  --color-text: #f9fafb;
+  --color-text-light: #e5e7eb;
+  --color-text-lighter: #d1d5db;
+  --color-text-inverted: #1f2937;
+  
+  /* Other variables remain the same as in root */
+}

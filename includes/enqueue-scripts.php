@@ -16,12 +16,25 @@ function mkb_admin_enqueue_assets($hook) {
     if (strpos($hook, 'media-kit-builder') === false) {
         return;
     }
-    // You can add admin-specific builder assets here if needed in the future
-    // For now, the router handles the main builder.
+    
     // Load admin styles with proper dependencies
-    wp_enqueue_style('mkb-core-styles', MKB_PLUGIN_URL . 'assets/css/builder.css', [], MKB_VERSION);
-    wp_enqueue_style('mkb-admin-compat', MKB_PLUGIN_URL . 'assets/css/wp-admin-compat.css', ['mkb-core-styles'], MKB_VERSION);
-    wp_enqueue_style('mkb-admin-styles', MKB_PLUGIN_URL . 'assets/css/admin.css', ['mkb-core-styles', 'mkb-admin-compat'], MKB_VERSION);
+    wp_enqueue_style('mkb-admin-styles', MKB_PLUGIN_URL . 'assets/css/admin.css', [], MKB_VERSION);
+    
+    // Load the new modular builder
+    wp_enqueue_style('mkb-builder', MKB_PLUGIN_URL . 'dist/media-kit-builder.css', [], MKB_VERSION);
+    wp_enqueue_script('mkb-builder', MKB_PLUGIN_URL . 'dist/media-kit-builder.js', ['jquery'], MKB_VERSION, true);
+    
+    // Pass configuration to the builder
+    wp_localize_script('mkb-builder', 'mediaKitBuilderConfig', [
+        'ajaxUrl' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('mkb_nonce'),
+        'platform' => 'wordpress',
+        'version' => MKB_VERSION,
+        'restBase' => rest_url('media-kit/v2'),
+        'adminUrl' => admin_url('admin.php?page=media-kit-builder'),
+        'debug' => defined('WP_DEBUG') && WP_DEBUG,
+        'theme' => 'default'
+    ]);
 }
 add_action('admin_enqueue_scripts', 'mkb_admin_enqueue_assets');
 
@@ -34,14 +47,13 @@ function mkb_enqueue_public_view_assets() {
         return;
     }
 
-    // Load our core CSS first (for base variables)
-    wp_enqueue_style('mkb-core-styles', MKB_PLUGIN_URL . 'assets/css/builder.css', [], MKB_VERSION);
+    // Load our bundled CSS
+    wp_enqueue_style('mkb-builder', MKB_PLUGIN_URL . 'dist/media-kit-builder.css', [], MKB_VERSION);
     
-    // Load component styles (depends on core)
-    wp_enqueue_style('mkb-component-styles', MKB_PLUGIN_URL . 'assets/css/components.css', ['mkb-core-styles'], MKB_VERSION);
+    // Load frontend-specific styles
+    wp_enqueue_style('mkb-frontend-styles', MKB_PLUGIN_URL . 'assets/css/frontend.css', ['mkb-builder'], MKB_VERSION);
     
-    // Load frontend-specific styles last
-    wp_enqueue_style('mkb-frontend-styles', MKB_PLUGIN_URL . 'assets/css/frontend.css', ['mkb-core-styles', 'mkb-component-styles'], MKB_VERSION);
+    // Load the public viewer script
     wp_enqueue_script('mkb-public-viewer', MKB_PLUGIN_URL . 'assets/js/public-viewer.js', ['jquery'], MKB_VERSION, true);
 
     wp_localize_script('mkb-public-viewer', 'mkbPreviewData', [

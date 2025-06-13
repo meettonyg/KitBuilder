@@ -1,0 +1,240 @@
+/**
+ * Styles for the Preview component
+ */
+
+.preview {
+  width: 100%;
+  background-color: var(--color-surface);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.header {
+  padding: var(--spacing-md);
+  border-bottom: var(--border-width-thin) solid var(--color-border);
+  background-color: var(--color-background);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  margin: 0;
+  color: var(--color-text);
+}
+
+.viewControls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.viewBtn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--border-radius-sm);
+  background: transparent;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.viewBtn:hover {
+  background-color: var(--color-surface);
+}
+
+.viewBtn.active {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverted);
+  border-color: var(--color-primary);
+}
+
+.previewContainer {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-md);
+  min-height: 400px;
+  margin: 0 auto;
+  transition: width var(--transition-normal);
+}
+
+.desktopView {
+  width: 100%;
+  max-width: 1200px;
+}
+
+.tabletView {
+  width: 768px;
+  max-width: 100%;
+  border-left: var(--border-width-thin) solid var(--color-border);
+  border-right: var(--border-width-thin) solid var(--color-border);
+}
+
+.mobileView {
+  width: 360px;
+  max-width: 100%;
+  border-left: var(--border-width-thin) solid var(--color-border);
+  border-right: var(--border-width-thin) solid var(--color-border);
+}
+
+.componentWrapper {
+  position: relative;
+  margin-bottom: var(--spacing-md);
+  border: var(--border-width-thin) solid transparent;
+  border-radius: var(--border-radius-md);
+  transition: all var(--transition-fast);
+}
+
+.componentWrapper:hover {
+  border-color: var(--color-primary-light);
+}
+
+.componentWrapper.selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+.componentWrapper.dragging {
+  opacity: 0.6;
+}
+
+.componentControls {
+  display: none;
+  position: absolute;
+  top: var(--spacing-xs);
+  right: var(--spacing-xs);
+  background-color: var(--color-background);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--border-radius-sm);
+  box-shadow: var(--shadow-sm);
+  z-index: 10;
+}
+
+.componentWrapper:hover .componentControls,
+.componentWrapper.selected .componentControls {
+  display: flex;
+}
+
+.controlBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-right: var(--border-width-thin) solid var(--color-border);
+  cursor: pointer;
+  padding: 0;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+}
+
+.controlBtn:last-child {
+  border-right: none;
+}
+
+.controlBtn:hover {
+  background-color: var(--color-surface);
+}
+
+.moveUpBtn:hover,
+.moveDownBtn:hover {
+  color: var(--color-primary);
+}
+
+.duplicateBtn:hover {
+  color: var(--color-info);
+}
+
+.deleteBtn:hover {
+  color: var(--color-error);
+}
+
+.componentContent {
+  padding: var(--spacing-md);
+}
+
+.componentError {
+  padding: var(--spacing-md);
+  background-color: rgba(var(--color-error), 0.1);
+  border: var(--border-width-thin) solid var(--color-error);
+  border-radius: var(--border-radius-sm);
+  color: var(--color-error);
+}
+
+.dropZone {
+  height: 0;
+  overflow: hidden;
+  transition: height var(--transition-fast);
+  margin: var(--spacing-xs) 0;
+}
+
+.dropZone.visible {
+  height: 60px;
+}
+
+.dropZone.active {
+  background-color: rgba(var(--color-primary), 0.1);
+}
+
+.dropIndicator {
+  height: 100%;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-light);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+.dropZone.active .dropIndicator {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: rgba(var(--color-primary), 0.05);
+}
+
+.emptyState {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(var(--color-background), 0.8);
+  z-index: 5;
+  padding: var(--spacing-xl);
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 48px;
+  color: var(--color-text-lighter);
+  margin-bottom: var(--spacing-md);
+}
+
+.emptyState h4 {
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-sm);
+  color: var(--color-text);
+}
+
+.emptyState p {
+  color: var(--color-text-light);
+  max-width: 300px;
+}
