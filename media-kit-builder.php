@@ -194,11 +194,29 @@ class Media_Kit_Builder {
         // Enqueue WordPress media uploader
         wp_enqueue_media();
         
+        // Load polyfill.io for automatic browser polyfills
+        wp_enqueue_script(
+            'polyfill-io',
+            'https://polyfill.io/v3/polyfill.min.js?features=default,Array.prototype.find,Promise,Element.prototype.closest',
+            array(),
+            null,
+            false // Load in header
+        );
+        
+        // Load cross-browser compatibility script before anything else
+        wp_enqueue_script(
+            'media-kit-builder-compatibility',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/compatibility.js',
+            array('jquery'),
+            MEDIA_KIT_BUILDER_VERSION,
+            false // Load in header
+        );
+        
         // CRITICAL: First load the standalone initializer to set up the global namespace
         wp_enqueue_script(
             'media-kit-builder-initializer',
             MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/standalone-initializer.js',
-            array('jquery'),
+            array('jquery', 'media-kit-builder-compatibility'),
             MEDIA_KIT_BUILDER_VERSION,
             false // Load in header, not footer
         );
@@ -343,11 +361,29 @@ if (isset($_GET['test']) && $_GET['test'] === 'performance') {
             // Enqueue WordPress media uploader
             wp_enqueue_media();
             
+            // Load polyfill.io for automatic browser polyfills
+            wp_enqueue_script(
+                'polyfill-io',
+                'https://polyfill.io/v3/polyfill.min.js?features=default,Array.prototype.find,Promise,Element.prototype.closest',
+                array(),
+                null,
+                false // Load in header
+            );
+            
+            // Load cross-browser compatibility script before anything else
+            wp_enqueue_script(
+                'media-kit-builder-compatibility',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/compatibility.js',
+                array('jquery'),
+                MEDIA_KIT_BUILDER_VERSION,
+                false // Load in header
+            );
+            
             // CRITICAL: First load the standalone initializer to set up the global namespace
             wp_enqueue_script(
                 'media-kit-builder-initializer',
                 MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/standalone-initializer.js',
-                array('jquery'),
+                array('jquery', 'media-kit-builder-compatibility'),
                 MEDIA_KIT_BUILDER_VERSION,
                 false // Load in header, not footer
             );
@@ -596,7 +632,9 @@ if (isset($_GET['test']) && $_GET['test'] === 'performance') {
             return;
         }
         
-        // Output the initializer directly in the head for other pages
+        // Output the compatibility and initializer scripts directly in the head for other pages
+        echo '<script src="https://polyfill.io/v3/polyfill.min.js?features=default,Array.prototype.find,Promise,Element.prototype.closest"></script>';
+        echo '<script src="' . MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/compatibility.js?ver=' . MEDIA_KIT_BUILDER_VERSION . '"></script>';
         echo '<script src="' . MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/standalone-initializer.js?ver=' . MEDIA_KIT_BUILDER_VERSION . '"></script>';
     }
     

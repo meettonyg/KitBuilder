@@ -10,6 +10,8 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -21,9 +23,111 @@ body.mkb-builder-body {
 }
 
 /* ==========================================================================
+   Cross-Browser Compatibility Styles
+   ========================================================================== */
+/* Touch-friendly controls for mobile devices */
+.touch-enhanced {
+    -webkit-tap-highlight-color: rgba(0,0,0,0); /* Remove tap highlight on iOS */
+}
+
+/* Browser-specific indicator classes added by compatibility.js */
+.browser-ie .no-flexbox-support,
+.browser-edge-old .no-flexbox-support {
+    display: block !important;
+}
+
+/* Object-fit fallback applied by compatibility.js */
+.object-fit-fallback {
+    display: inline-block;
+    position: relative;
+}
+
+/* Touch drag ghost element */
+.touch-drag-ghost {
+    will-change: transform;
+    -webkit-transform-origin: center center;
+    transform-origin: center center;
+    -webkit-transition: transform 0.1s ease, opacity 0.1s ease;
+    transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+/* Element being touch dragged */
+.touch-dragging {
+    opacity: 0.6 !important;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Highlighted drop zone during touch drag */
+.drop-zone-hover {
+    background-color: rgba(14, 165, 233, 0.2) !important;
+    border: 2px dashed #0ea5e9 !important;
+}
+
+/* Firefox specific fixes */
+@-moz-document url-prefix() {
+    .section-content {
+        width: 100%;
+    }
+    
+    .element-controls, .section-controls {
+        z-index: 100; /* Ensure controls are always on top in Firefox */
+    }
+}
+
+/* Safari specific fixes */
+@media not all and (min-resolution:.001dpcm) { 
+    @supports (-webkit-appearance:none) {
+        .section-content {
+            display: -webkit-box;
+            display: -webkit-flex;
+        }
+        
+        .section-column {
+            -webkit-flex: 1;
+        }
+        
+        .layout-main-sidebar .section-column[data-column="main"] {
+            -webkit-flex: 2;
+        }
+    }
+}
+
+/* Edge specific fixes */
+@supports (-ms-ime-align:auto) {
+    .section-content {
+        display: -ms-flexbox;
+    }
+    
+    .section-column {
+        -ms-flex: 1;
+    }
+    
+    .layout-main-sidebar .section-column[data-column="main"] {
+        -ms-flex: 2;
+    }
+}
+
+/* Internet Explorer specific fixes */
+@media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+    .section-content {
+        display: -ms-flexbox;
+    }
+    
+    .section-column {
+        -ms-flex: 1;
+    }
+}
+
+/* ==========================================================================
    Main Layout & Containers
    ========================================================================== */
 .builder-container {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
     display: flex;
     height: 100vh;
     position: relative;
@@ -37,8 +141,15 @@ body.mkb-builder-body {
     height: 48px;
     background: #2a2a2a;
     border-bottom: 1px solid #404040;
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
     display: flex;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
     align-items: center;
+    -webkit-justify-content: space-between;
+    -ms-flex-pack: justify;
     justify-content: space-between;
     padding: 0 16px;
     z-index: 1000;
@@ -50,12 +161,22 @@ body.mkb-builder-body {
     border-right: 1px solid #404040;
     margin-top: 48px;
     height: calc(100vh - 48px);
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
     display: flex;
+    -webkit-flex-direction: column;
+    -ms-flex-direction: column;
     flex-direction: column;
+    -webkit-flex-shrink: 0;
+    -ms-flex-negative: 0;
     flex-shrink: 0;
 }
 
 .preview-area {
+    -webkit-box-flex: 1;
+    -webkit-flex: 1;
+    -ms-flex: 1;
     flex: 1;
     margin-top: 48px;
     height: calc(100vh - 48px);
@@ -69,8 +190,10 @@ body.mkb-builder-body {
     margin: 30px auto;
     background: white;
     border-radius: 10px;
+    -webkit-box-shadow: 0 15px 35px rgba(0,0,0,0.3);
     box-shadow: 0 15px 35px rgba(0,0,0,0.3);
     overflow: hidden;
+    -webkit-transition: all 0.3s ease;
     transition: all 0.3s ease;
     min-height: 500px;
     color: #1a1a1a;
@@ -80,7 +203,12 @@ body.mkb-builder-body {
    Toolbar Elements
    ========================================================================== */
 .toolbar-left, .toolbar-center, .toolbar-right {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
     display: flex;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
     align-items: center;
     gap: 12px;
 }
@@ -88,7 +216,26 @@ body.mkb-builder-body {
 .logo { font-size: 16px; font-weight: 600; color: #0ea5e9; }
 .guest-name { color: #94a3b8; font-size: 13px; }
 
-.toolbar-btn { background: #404040; border: none; color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s ease; white-space: nowrap; }
+.toolbar-btn { 
+    background: #404040; 
+    border: none; 
+    color: #fff; 
+    padding: 6px 10px; 
+    border-radius: 6px; 
+    font-size: 12px; 
+    cursor: pointer; 
+    display: -webkit-box; 
+    display: -webkit-flex; 
+    display: -ms-flexbox; 
+    display: flex; 
+    -webkit-align-items: center; 
+    -ms-flex-align: center; 
+    align-items: center; 
+    gap: 4px; 
+    -webkit-transition: all 0.2s ease; 
+    transition: all 0.2s ease; 
+    white-space: nowrap; 
+}
 .toolbar-btn:hover { background: #505050; }
 .toolbar-btn.primary { background: #0ea5e9; }
 .toolbar-btn.primary:hover { background: #0284c7; }
@@ -96,26 +243,95 @@ body.mkb-builder-body {
 .toolbar-btn.export { background: #059669; }
 .toolbar-btn.export:hover { background: #047857; }
 
-.preview-toggle { background: #333; border: 1px solid #555; border-radius: 8px; overflow: hidden; display: flex; }
-.preview-toggle button { background: none; border: none; color: #94a3b8; padding: 4px 8px; cursor: pointer; font-size: 11px; transition: all 0.2s ease; display: flex; align-items: center; gap: 4px; }
+.preview-toggle { 
+    background: #333; 
+    border: 1px solid #555; 
+    border-radius: 8px; 
+    overflow: hidden; 
+    display: -webkit-box; 
+    display: -webkit-flex; 
+    display: -ms-flexbox; 
+    display: flex; 
+}
+.preview-toggle button { 
+    background: none; 
+    border: none; 
+    color: #94a3b8; 
+    padding: 4px 8px; 
+    cursor: pointer; 
+    font-size: 11px; 
+    -webkit-transition: all 0.2s ease; 
+    transition: all 0.2s ease; 
+    display: -webkit-box; 
+    display: -webkit-flex; 
+    display: -ms-flexbox; 
+    display: flex; 
+    -webkit-align-items: center; 
+    -ms-flex-align: center; 
+    align-items: center; 
+    gap: 4px; 
+}
 .preview-toggle button.active { background: #0ea5e9; color: white; }
 
-.status-indicator { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #94a3b8; }
+.status-indicator { 
+    display: -webkit-box; 
+    display: -webkit-flex; 
+    display: -ms-flexbox; 
+    display: flex; 
+    -webkit-align-items: center; 
+    -ms-flex-align: center; 
+    align-items: center; 
+    gap: 6px; 
+    font-size: 11px; 
+    color: #94a3b8; 
+}
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
-.status-dot.saving { background: #f59e0b; animation: pulse 1s infinite; }
+.status-dot.saving { 
+    background: #f59e0b; 
+    -webkit-animation: pulse 1s infinite; 
+    animation: pulse 1s infinite; 
+}
+@-webkit-keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
 /* ==========================================================================
    Sidebar, Tabs & Forms
    ========================================================================== */
-.sidebar-tabs { display: flex; border-bottom: 1px solid #404040; background: #333; }
-.sidebar-tab { flex: 1; background: none; border: none; color: #94a3b8; padding: 10px 8px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s ease; border-bottom: 2px solid transparent; }
+.sidebar-tabs { 
+    display: -webkit-box; 
+    display: -webkit-flex; 
+    display: -ms-flexbox; 
+    display: flex; 
+    border-bottom: 1px solid #404040; 
+    background: #333; 
+}
+.sidebar-tab { 
+    -webkit-box-flex: 1; 
+    -webkit-flex: 1; 
+    -ms-flex: 1; 
+    flex: 1; 
+    background: none; 
+    border: none; 
+    color: #94a3b8; 
+    padding: 10px 8px; 
+    cursor: pointer; 
+    font-size: 12px; 
+    font-weight: 500; 
+    -webkit-transition: all 0.2s ease; 
+    transition: all 0.2s ease; 
+    border-bottom: 2px solid transparent; 
+}
 .sidebar-tab.active { color: #0ea5e9; border-bottom-color: #0ea5e9; background: #2a2a2a; }
 .sidebar-tab:hover:not(.active) { color: #e2e8f0; background: #3a3a3a; }
 
 .sidebar-content { padding: 16px; flex-grow: 1; overflow-y: auto; }
 .tab-content { display: none; height: 100%; }
-.tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+.tab-content.active { 
+    display: block; 
+    -webkit-animation: fadeIn 0.3s ease; 
+    animation: fadeIn 0.3s ease; 
+}
+@-webkit-keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* Ensure sidebar has proper dimensions */
@@ -123,16 +339,26 @@ body.mkb-builder-body {
     width: 280px;
     background: #222;
     height: 100%;
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
     display: flex;
+    -webkit-flex-direction: column;
+    -ms-flex-direction: column;
     flex-direction: column;
     overflow: hidden;
 }
 
 /* Fix component categories display */
 .component-categories {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
     display: flex;
     gap: 4px;
     margin-bottom: 12px;
+    -webkit-flex-wrap: wrap;
+    -ms-flex-wrap: wrap;
     flex-wrap: wrap;
 }
 
@@ -144,6 +370,7 @@ body.mkb-builder-body {
     padding: 5px 8px;
     font-size: 11px;
     cursor: pointer;
+    -webkit-transition: all 0.2s ease;
     transition: all 0.2s ease;
 }
 
@@ -158,22 +385,84 @@ body.mkb-builder-body {
     color: white;
 }
 
-.section-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: #e2e8f0; display: flex; align-items: center; gap: 6px; }
+.section-title { 
+    font-size: 13px; 
+    font-weight: 600; 
+    margin-bottom: 10px; 
+    color: #e2e8f0; 
+    display: -webkit-box; 
+    display: -webkit-flex; 
+    display: -ms-flexbox; 
+    display: flex; 
+    -webkit-align-items: center; 
+    -ms-flex-align: center; 
+    align-items: center; 
+    gap: 6px; 
+}
 .form-group { margin-bottom: 12px; }
 .form-label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 5px; font-weight: 500; }
-.form-input, .form-textarea { width: 100%; background: #333; border: 1px solid #555; border-radius: 4px; padding: 8px 10px; color: #fff; font-size: 13px; transition: border-color 0.2s ease; }
-.form-input:focus, .form-textarea:focus { outline: none; border-color: #0ea5e9; box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1); }
+.form-input, .form-textarea { 
+    width: 100%; 
+    background: #333; 
+    border: 1px solid #555; 
+    border-radius: 4px; 
+    padding: 8px 10px; 
+    color: #fff; 
+    font-size: 13px; 
+    -webkit-transition: border-color 0.2s ease; 
+    transition: border-color 0.2s ease; 
+}
+.form-input:focus, .form-textarea:focus { 
+    outline: none; 
+    border-color: #0ea5e9; 
+    -webkit-box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1); 
+    box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1); 
+}
 .form-textarea { min-height: 70px; resize: vertical; font-family: inherit; }
 
 /* ==========================================================================
    Component Palette
    ========================================================================== */
 .components-section { margin-bottom: 24px; }
-.component-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-.component-item { background: #333; border: 1px solid #404040; border-radius: 6px; padding: 10px; cursor: grab; transition: all 0.2s ease; text-align: center; position: relative; user-select: none; }
-.component-item:hover { border-color: #0ea5e9; background: #3a3a3a; transform: translateY(-1px); }
-.component-item:active { cursor: grabbing; }
-.component-item.dragging { opacity: 0.5; transform: rotate(5deg); }
+.component-grid { 
+    display: -ms-grid;
+    display: grid;
+    -ms-grid-columns: 1fr 8px 1fr;
+    grid-template-columns: 1fr 1fr; 
+    gap: 8px; 
+    margin-bottom: 12px; 
+}
+.component-item { 
+    background: #333; 
+    border: 1px solid #404040; 
+    border-radius: 6px; 
+    padding: 10px; 
+    cursor: -webkit-grab;
+    cursor: grab; 
+    -webkit-transition: all 0.2s ease; 
+    transition: all 0.2s ease; 
+    text-align: center; 
+    position: relative; 
+    -webkit-user-select: none; 
+    -moz-user-select: none; 
+    -ms-user-select: none; 
+    user-select: none; 
+}
+.component-item:hover { 
+    border-color: #0ea5e9; 
+    background: #3a3a3a; 
+    -webkit-transform: translateY(-1px); 
+    transform: translateY(-1px); 
+}
+.component-item:active { 
+    cursor: -webkit-grabbing;
+    cursor: grabbing; 
+}
+.component-item.dragging { 
+    opacity: 0.5; 
+    -webkit-transform: rotate(5deg); 
+    transform: rotate(5deg); 
+}
 .component-name { font-size: 11px; color: #94a3b8; font-weight: 500; }
 .component-item:hover .component-name { color: #e2e8f0; }
 
@@ -183,6 +472,7 @@ body.mkb-builder-body {
     height: 20px;
     margin: 0 auto 6px;
     stroke: #94a3b8;
+    -webkit-transition: stroke 0.2s ease;
     transition: stroke 0.2s ease;
 }
 .component-item:hover .component-icon { stroke: #0ea5e9; }
@@ -199,6 +489,7 @@ body.mkb-builder-body {
 .media-kit-section {
     position: relative;
     border: 2px dashed transparent;
+    -webkit-transition: border-color 0.2s ease-in-out, background-color 0.2s ease-in-out;
     transition: border-color 0.2s ease-in-out, background-color 0.2s ease-in-out;
     padding-top: 40px; /* Add space for controls */
     margin-bottom: 20px;
@@ -214,6 +505,7 @@ body.mkb-builder-body {
 .media-kit-section.selected {
     border-color: #0ea5e9;
     border-style: solid;
+    -webkit-box-shadow: 0 0 15px rgba(14, 165, 233, 0.3);
     box-shadow: 0 0 15px rgba(14, 165, 233, 0.3);
     background-color: rgba(14, 165, 233, 0.08);
 }
@@ -223,6 +515,7 @@ body.mkb-builder-body {
 .media-kit-section.selected .section-controls {
     opacity: 1;
     visibility: visible;
+    -webkit-transform: translateY(0);
     transform: translateY(0);
 }
 
@@ -233,13 +526,20 @@ body.mkb-builder-body {
     background: #2a2a2a;
     border-radius: 6px;
     padding: 4px;
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
     display: flex;
     gap: 4px;
     z-index: 50;
     opacity: 0;
     visibility: hidden;
+    -webkit-transform: translateY(-10px);
     transform: translateY(-10px);
+    -webkit-transition: opacity 0.2s ease, visibility 0.2s ease, -webkit-transform 0.2s ease;
+    transition: opacity 0.2s ease, visibility 0.2s ease, -webkit-transform 0.2s ease;
     transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease, -webkit-transform 0.2s ease;
 }
 
 .section-control-btn {
@@ -250,8 +550,15 @@ body.mkb-builder-body {
     height: 28px;
     border-radius: 4px;
     cursor: pointer;
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
     display: flex;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
     align-items: center;
+    -webkit-justify-content: center;
+    -ms-flex-pack: center;
     justify-content: center;
     font-size: 16px;
 }
@@ -270,7 +577,14 @@ body.mkb-builder-body {
 /* Style for when a section is active for dragging */
 .media-kit-section.is-draggable-active {
     border: 2px solid #0ea5e9;
+    -webkit-animation: pulse-border 1s ease;
     animation: pulse-border 1s ease;
+}
+
+@-webkit-keyframes pulse-border {
+    0% { border-color: #0ea5e9; }
+    50% { border-color: #f59e0b; }
+    100% { border-color: #0ea5e9; }
 }
 
 @keyframes pulse-border {
@@ -281,13 +595,20 @@ body.mkb-builder-body {
 
 /* Section content layout styles */
 .section-content {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
     display: flex;
     gap: 20px;
     width: 100%;
+    -webkit-transition: all 0.3s ease;
     transition: all 0.3s ease;
 }
 
 .section-column {
+    -webkit-box-flex: 1;
+    -webkit-flex: 1;
+    -ms-flex: 1;
     flex: 1;
     min-height: 50px;
 }
@@ -298,18 +619,30 @@ body.mkb-builder-body {
 }
 
 .layout-two-column .section-column {
+    -webkit-box-flex: 1;
+    -webkit-flex: 1;
+    -ms-flex: 1;
     flex: 1;
 }
 
 .layout-three-column .section-column {
+    -webkit-box-flex: 1;
+    -webkit-flex: 1;
+    -ms-flex: 1;
     flex: 1;
 }
 
 .layout-main-sidebar .section-column[data-column="main"] {
+    -webkit-box-flex: 2;
+    -webkit-flex: 2;
+    -ms-flex: 2;
     flex: 2;
 }
 
 .layout-main-sidebar .section-column[data-column="sidebar"] {
+    -webkit-box-flex: 1;
+    -webkit-flex: 1;
+    -ms-flex: 1;
     flex: 1;
 }
 
@@ -317,8 +650,21 @@ body.mkb-builder-body {
    Mobile Responsiveness (Enhanced)
    ========================================================================== */
 @media (max-width: 768px) {
-    .builder-container { flex-direction: column; }
-    .left-sidebar { width: 100%; height: auto; max-height: 40vh; margin-top: 48px; border-right: none; border-bottom: 1px solid #404040; }
+    .builder-container { 
+        -webkit-box-orient: vertical;
+        -webkit-box-direction: normal;
+        -webkit-flex-direction: column;
+        -ms-flex-direction: column;
+        flex-direction: column; 
+    }
+    .left-sidebar { 
+        width: 100%; 
+        height: auto; 
+        max-height: 40vh; 
+        margin-top: 48px; 
+        border-right: none; 
+        border-bottom: 1px solid #404040; 
+    }
     .preview-area { margin-top: 0; height: auto; }
     .top-toolbar { padding: 0 12px; }
     .toolbar-left, .toolbar-right { gap: 8px; }
@@ -326,11 +672,17 @@ body.mkb-builder-body {
     
     /* Stack section columns vertically on mobile */
     .section-content {
+        -webkit-box-orient: vertical !important;
+        -webkit-box-direction: normal !important;
+        -webkit-flex-direction: column !important;
+        -ms-flex-direction: column !important;
         flex-direction: column !important;
     }
 
     .section-column {
         width: 100% !important; /* Ensure columns take full width */
+        -webkit-flex-basis: auto !important;
+        -ms-flex-preferred-size: auto !important;
         flex-basis: auto !important;
         margin-bottom: 20px;
     }
@@ -360,5 +712,51 @@ body.mkb-builder-body {
     .control-btn {
         width: 30px;
         height: 30px;
+    }
+    
+    /* Touch-optimized controls for mobile */
+    .mobile-device .section-control-btn,
+    .mobile-device .control-btn,
+    .ios-device .section-control-btn,
+    .ios-device .control-btn,
+    .android-device .section-control-btn,
+    .android-device .control-btn {
+        min-width: 44px;
+        min-height: 44px;
+        font-size: 20px;
+    }
+    
+    /* Increase spacing for touch targets */
+    .mobile-device .component-item,
+    .ios-device .component-item,
+    .android-device .component-item {
+        padding: 12px;
+        margin-bottom: 10px;
+    }
+    
+    /* Ensure adequate touch target size for form elements */
+    .mobile-device .form-input,
+    .mobile-device .form-textarea,
+    .ios-device .form-input,
+    .ios-device .form-textarea,
+    .android-device .form-input,
+    .android-device .form-textarea {
+        padding: 12px;
+        font-size: 16px; /* Prevent iOS zoom on focus */
+    }
+}
+
+/* Special handling for iPad in portrait orientation */
+@media only screen and (min-device-width: 768px) and (max-device-width: 1024px) and (orientation: portrait) {
+    .sidebar-tabs button {
+        padding: 12px 8px; /* Larger touch targets */
+    }
+    
+    .component-item {
+        padding: 12px;
+    }
+    
+    .section-controls {
+        opacity: 0.8; /* Always somewhat visible on iPad */
     }
 }
