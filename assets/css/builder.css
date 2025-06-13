@@ -194,26 +194,41 @@ body.mkb-builder-body {
 .preview-container.tablet-preview { max-width: 768px; margin: 20px auto; }
 
 /* ==========================================================================
-   Section Controls & Drag Handles
+   Section Controls & Drag Handles (Enhanced)
    ========================================================================== */
 .media-kit-section {
     position: relative;
     border: 2px dashed transparent;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s ease-in-out, background-color 0.2s ease-in-out;
+    padding-top: 40px; /* Add space for controls */
+    margin-bottom: 20px;
 }
 
-/* Show controls and border on hover */
+/* Show a blue border on hover to indicate interactivity */
 .media-kit-section:hover {
     border-color: #0ea5e9;
+    background-color: rgba(14, 165, 233, 0.05);
 }
 
-.media-kit-section:hover .section-controls {
+/* Make the border solid and more prominent when the section is actively selected */
+.media-kit-section.selected {
+    border-color: #0ea5e9;
+    border-style: solid;
+    box-shadow: 0 0 15px rgba(14, 165, 233, 0.3);
+    background-color: rgba(14, 165, 233, 0.08);
+}
+
+/* Always show controls when the section is selected */
+.media-kit-section:hover .section-controls,
+.media-kit-section.selected .section-controls {
     opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
 }
 
 .section-controls {
     position: absolute;
-    top: 10px;
+    top: 5px;
     right: 10px;
     background: #2a2a2a;
     border-radius: 6px;
@@ -222,20 +237,23 @@ body.mkb-builder-body {
     gap: 4px;
     z-index: 50;
     opacity: 0;
-    transition: opacity 0.2s ease;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
 }
 
 .section-control-btn {
     background: #404040;
     border: none;
     color: #fff;
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     border-radius: 4px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 16px;
 }
 
 .section-control-btn:hover {
@@ -261,8 +279,42 @@ body.mkb-builder-body {
     100% { border-color: #0ea5e9; }
 }
 
+/* Section content layout styles */
+.section-content {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    transition: all 0.3s ease;
+}
+
+.section-column {
+    flex: 1;
+    min-height: 50px;
+}
+
+/* Layout-specific styles */
+.layout-full-width .section-column {
+    width: 100%;
+}
+
+.layout-two-column .section-column {
+    flex: 1;
+}
+
+.layout-three-column .section-column {
+    flex: 1;
+}
+
+.layout-main-sidebar .section-column[data-column="main"] {
+    flex: 2;
+}
+
+.layout-main-sidebar .section-column[data-column="sidebar"] {
+    flex: 1;
+}
+
 /* ==========================================================================
-   Mobile Responsiveness
+   Mobile Responsiveness (Enhanced)
    ========================================================================== */
 @media (max-width: 768px) {
     .builder-container { flex-direction: column; }
@@ -271,4 +323,42 @@ body.mkb-builder-body {
     .top-toolbar { padding: 0 12px; }
     .toolbar-left, .toolbar-right { gap: 8px; }
     .guest-name, .toolbar-center { display: none; } /* Hide center on small screens */
+    
+    /* Stack section columns vertically on mobile */
+    .section-content {
+        flex-direction: column !important;
+    }
+
+    .section-column {
+        width: 100% !important; /* Ensure columns take full width */
+        flex-basis: auto !important;
+        margin-bottom: 20px;
+    }
+    
+    .section-column:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Make section controls larger and easier to tap */
+    .section-control-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 18px;
+    }
+    
+    .section-controls {
+        top: 0;
+        right: 5px;
+        padding: 5px;
+    }
+
+    .editable-element .element-controls {
+        top: 5px;
+        right: 5px;
+    }
+
+    .control-btn {
+        width: 30px;
+        height: 30px;
+    }
 }

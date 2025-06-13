@@ -81,10 +81,20 @@
                 this.setupComponentCategories();
                 this.setupDragAndDrop();
                 this.setupSectionReordering();
+                this.setupSectionSelection(); // Add section selection functionality
                 this.setupAddSectionButton();
                 this.setupUndoRedo();
                 this.setupEventListeners();
                 this.setupAutoSave();
+                
+                // Add section selection event handler
+                this.on('section-selected', ({ section }) => {
+                    console.log('Section selected event triggered', section.dataset.sectionId);
+                    // Switch to the design tab
+                    const designTab = document.querySelector('.sidebar-tab[data-tab="design"]');
+                    if (designTab) designTab.click();
+                });
+                
                 this.state.initialized = true;
                 this.emit('initialized', { timestamp: new Date() });
                 this.exposePropertiesGlobally();
@@ -379,7 +389,155 @@
                         }, 1000);
                     }
                 }
+                
+                // Settings button (select section and show settings)
+                if (e.target.closest('.section-control-btn.settings-btn')) {
+                    const section = e.target.closest('.media-kit-section');
+                    if (section) {
+                        // Deselect any currently selected element
+                        if (this.state.selectedElement) {
+                            this.state.selectedElement.classList.remove('selected');
+                            this.state.selectedElement = null;
+                        }
+                        
+                        // Deselect any currently selected section
+                        if (this.state.selectedSection) {
+                            this.state.selectedSection.classList.remove('selected');
+                        }
+                        
+                        // Select this section
+                        section.classList.add('selected');
+                        this.state.selectedSection = section;
+                        
+                        // Update design panel with section settings
+                        this.updateSectionDesignPanel(section);
+                        this.emit('section-selected', { section });
+                    }
+                }
             });
+        }
+        
+        setupSectionSelection() {
+            if (!this.elements.preview) return;
+            
+            this.elements.preview.addEventListener('click', (e) => {
+                const section = e.target.closest('.media-kit-section');
+                
+                // If a control button inside the section was clicked, do nothing
+                if (e.target.closest('.section-controls') || e.target.closest('.editable-element')) {
+                    return;
+                }
+                
+                if (section) {
+                    // Deselect any currently selected element
+                    if (this.state.selectedElement) {
+                        this.state.selectedElement.classList.remove('selected');
+                        this.state.selectedElement = null;
+                    }
+                    
+                    // Deselect any currently selected section
+                    if (this.state.selectedSection) {
+                        this.state.selectedSection.classList.remove('selected');
+                    }
+                    
+                    // Select the new section
+                    section.classList.add('selected');
+                    this.state.selectedSection = section;
+                    
+                    this.emit('section-selected', { section });
+                    console.log('Section selected:', section.dataset.sectionId);
+                    
+                    // Update design panel with section settings
+                    this.updateSectionDesignPanel(section);
+                }
+            });
+        }
+        
+        updateSectionDesignPanel(section) {
+            const designPanel = this.elements.designPanel;
+            if (!designPanel) return;
+            
+            const layout = section.getAttribute('data-section-layout') || 'full-width';
+            const bgColor = section.style.backgroundColor || '#ffffff';
+            const padding = section.style.padding || '20px';
+            
+            designPanel.innerHTML = `
+                <div class="panel-heading">
+                    <h3>Section Settings</h3>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Layout</label>
+                    <select class="form-input" id="section-layout-switcher">
+                        <option value="full-width" ${layout === 'full-width' ? 'selected' : ''}>Full Width</option>
+                        <option value="two-column" ${layout === 'two-column' ? 'selected' : ''}>Two Column</option>
+                        <option value="three-column" ${layout === 'three-column' ? 'selected' : ''}>Three Column</option>
+                        <option value="main-sidebar" ${layout === 'main-sidebar' ? 'selected' : ''}>Main + Sidebar</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Background Color</label>
+                    <div class="color-picker">
+                        <input type="color" id="section-bg-color" value="${bgColor}">
+                        <input type="text" class="form-input" id="section-bg-text" value="${bgColor}">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Padding</label>
+                    <input type="text" class="form-input" id="section-padding" value="${padding}">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Mobile Settings</label>
+                    <select class="form-input" id="section-mobile-stack">
+                        <option value="normal">Normal Stacking</option>
+                        <option value="reverse">Reverse Order</option>
+                    </select>
+                </div>
+            `;
+            
+            // Layout switcher event
+            document.getElementById('section-layout-switcher').addEventListener('change', (e) => {
+                this.changeSectionLayout(section, e.target.value);
+            });
+            
+            // Background color events
+            const bgColorInput = document.getElementById('section-bg-color');
+            const bgTextInput = document.getElementById('section-bg-text');
+            
+            bgColorInput.addEventListener('input', () => {
+                section.style.backgroundColor = bgColorInput.value;
+                bgTextInput.value = bgColorInput.value;
+                this.markDirty();
+            });
+            
+            bgTextInput.addEventListener('input', () => {
+                if (/^#[0-9A-F]{6}$/i.test(bgTextInput.value)) {
+                    section.style.backgroundColor = bgTextInput.value;
+                    bgColorInput.value = bgTextInput.value;
+                    this.markDirty();
+                }
+            });
+            
+            // Padding event
+            document.getElementById('section-padding').addEventListener('change', (e) => {
+                section.style.padding = e.target.value;
+                this.markDirty();
+            });
+            
+            // Mobile stack order
+            document.getElementById('section-mobile-stack').addEventListener('change', (e) => {
+                section.dataset.mobileStack = e.target.value;
+                this.markDirty();
+            });
+            
+            // Switch to design tab
+            const designTab = document.querySelector('.sidebar-tab[data-tab="design"]');
+            if (designTab && !designTab.classList.contains('active')) {
+                designTab.click();
+            }
         }
         
         getDragAfterElement(container, y) {
@@ -427,6 +585,7 @@
             sectionControls.className = 'section-controls';
             sectionControls.innerHTML = `
                 <button class="section-control-btn move-btn" title="Move Section">↕</button>
+                <button class="section-control-btn settings-btn" title="Section Settings">⚙</button>
                 <button class="section-control-btn delete-btn" title="Delete Section">✕</button>
             `;
             section.appendChild(sectionControls);
@@ -456,6 +615,113 @@
             
             return section;
         }
+        
+        changeSectionLayout(section, newLayout) {
+            if (!section || !newLayout) return;
+            
+            const oldLayout = section.getAttribute('data-section-layout') || 'full-width';
+            if (oldLayout === newLayout) return; // No change needed
+            
+            console.log(`Changing section layout from ${oldLayout} to ${newLayout}`);
+            
+            const sectionContent = section.querySelector('.section-content');
+            if (!sectionContent) return;
+            
+            // 1. Collect all components from all columns
+            const allComponents = [];
+            section.querySelectorAll('.editable-element').forEach(comp => {
+                allComponents.push(comp);
+            });
+            
+            console.log(`Found ${allComponents.length} components to redistribute`);
+            
+            // 2. Clear current content and update layout attributes
+            sectionContent.innerHTML = '';
+            section.setAttribute('data-section-layout', newLayout);
+            sectionContent.className = `section-content layout-${newLayout}`;
+            
+            // 3. Create new columns based on the layout
+            const columns = [];
+            
+            switch (newLayout) {
+                case 'two-column':
+                    columns.push(this.createColumn('left'));
+                    columns.push(this.createColumn('right'));
+                    break;
+                case 'three-column':
+                    columns.push(this.createColumn('left'));
+                    columns.push(this.createColumn('center'));
+                    columns.push(this.createColumn('right'));
+                    break;
+                case 'main-sidebar':
+                    columns.push(this.createColumn('main'));
+                    columns.push(this.createColumn('sidebar'));
+                    break;
+                default: // full-width
+                    columns.push(this.createColumn('full'));
+            }
+            
+            // Add columns to section content
+            columns.forEach(column => {
+                sectionContent.appendChild(column);
+            });
+            
+            // 4. Redistribute components using intelligent grouping
+            this.redistributeComponentsSmarter(allComponents, columns);
+            
+            // 5. Re-initialize drag and drop
+            this.setupDragAndDrop();
+            this.setupElementSelection();
+            
+            // 6. Save state and mark dirty
+            this.saveStateToHistory();
+            this.markDirty();
+            
+            console.log(`Layout changed to ${newLayout} with ${columns.length} columns`);
+        }
+        
+        createColumn(columnType) {
+            const column = document.createElement('div');
+            column.className = 'section-column';
+            column.setAttribute('data-column', columnType);
+            
+            const dropZone = document.createElement('div');
+            dropZone.className = 'drop-zone empty';
+            dropZone.setAttribute('data-zone', `zone-${Date.now()}-${columnType}`);
+            
+            column.appendChild(dropZone);
+            return column;
+        }
+        
+        redistributeComponentsSmarter(components, columns) {
+            if (!components.length || !columns.length) return;
+            
+            // Group components by type for smarter distribution
+            const groupedByType = {};
+            components.forEach(comp => {
+                const type = comp.getAttribute('data-component');
+                if (!groupedByType[type]) groupedByType[type] = [];
+                groupedByType[type].push(comp);
+            });
+            
+            // Distribute groups across columns to keep related components together
+            let columnIndex = 0;
+            const dropZones = columns.map(col => col.querySelector('.drop-zone'));
+            
+            Object.values(groupedByType).forEach(group => {
+                // Place entire group in the same column when possible
+                const targetZone = dropZones[columnIndex % dropZones.length];
+                
+                group.forEach(component => {
+                    targetZone.appendChild(component);
+                    targetZone.classList.remove('empty');
+                });
+                
+                columnIndex++;
+            });
+            
+            console.log(`Redistributed components across ${columns.length} columns`);
+        }
         createInitialDropZone() {
             try {
                 if (!this.elements.preview) return;
@@ -472,6 +738,7 @@
                 sectionControls.className = 'section-controls';
                 sectionControls.innerHTML = `
                     <button class="section-control-btn move-btn" title="Move Section">↕</button>
+                    <button class="section-control-btn settings-btn" title="Section Settings">⚙</button>
                     <button class="section-control-btn delete-btn" title="Delete Section">✕</button>
                 `;
                 section.appendChild(sectionControls);
