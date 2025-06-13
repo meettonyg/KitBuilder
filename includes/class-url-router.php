@@ -2,6 +2,8 @@
 /**
  * URL Router for Media Kit Builder
  * Handles custom URL routing and asset loading for the frontend builder.
+ *
+ * @version 2.0 - Revised for complete environment isolation and correct asset loading.
  */
 
 if (!defined('ABSPATH')) {
@@ -71,64 +73,59 @@ class Media_Kit_Builder_URL_Router {
                 break;
         }
         
-        // We are taking over the page, so exit to prevent standard WordPress template loading.
+        // This is critical: We stop WordPress from loading the theme after our page is rendered.
         exit;
     }
     
     /**
      * Enqueues all necessary scripts and styles for the builder application.
-     * This is called directly from the show_builder_page method to ensure assets are loaded correctly.
+     * This function defines the precise loading order for all assets.
      */
     private function enqueue_builder_assets() {
-        $version = MKB_VERSION;
-		$plugin_url = MKB_PLUGIN_URL; // ADDED
-        $plugin_dir = MKB_PLUGIN_DIR; // ADDED
+        $version = defined('MKB_VERSION') ? MKB_VERSION : '1.0.0';
         $assets_url = MKB_PLUGIN_URL . 'assets/';
 
-        // 1. Enqueue the main builder layout style (refactored builder.css)
-        wp_enqueue_style('mkb-builder-core-styles', $assets_url . 'css/builder.css', [], $version);
+        // --- STYLESHEETS ---
+        // 1. Reset CSS for a clean slate
+        wp_enqueue_style('mkb-reset', $assets_url . 'css/reset.css', [], $version);
+        
+        // 2. Core builder layout styles
+        wp_enqueue_style('mkb-builder-core-styles', $assets_url . 'css/builder.css', ['mkb-reset'], $version);
 		
-		 // 2. Enqueue the NEW shared component styles
+		// 3. Shared component styles
         wp_enqueue_style('mkb-components-styles', $assets_url . 'css/components.css', ['mkb-builder-core-styles'], $version);
 
-        // 3. Enqueue WordPress admin compatibility styles
+        // 4. WordPress admin compatibility styles
         wp_enqueue_style('mkb-wp-admin-compat', $assets_url . 'css/wp-admin-compat.css', ['mkb-builder-core-styles'], $version);
 
-        // 4. Dynamically enqueue styles for each component
-        $components_dir = $plugin_dir . 'components/';
-        if (is_dir($components_dir)) {
-            $components = array_filter(scandir($components_dir), function($item) use ($components_dir) {
-                return is_dir($components_dir . $item) && !in_array($item, ['.', '..']);
-            });
-
-            foreach ($components as $component_slug) {
-                $style_path = $components_dir . $component_slug . '/styles.css';
-                $style_url = $plugin_url . 'components/' . $component_slug . '/styles.css';
-                if (file_exists($style_path)) {
-                    wp_enqueue_style(
-                        'mkb-component-' . $component_slug . '-styles',
-                        $style_url,
-                        ['mkb-builder-core-styles'],
-                        $version
-                    );
-                }
-            }
-        }
-
-        // Enqueue JS with correct dependencies
+        // --- SCRIPTS ---
+        // WordPress dependencies
         wp_enqueue_script('jquery');
         wp_enqueue_media();
         
-        // Load initializer first
-        wp_enqueue_script('mkb-standalone-initializer', $assets_url . 'js/standalone-initializer.js', ['jquery'], $version, false);
-
+        // 1. Polyfills for cross-browser support (loads from external CDN)
+        wp_enqueue_script('mkb-polyfills', 'https://polyfill.io/v3/polyfill.min.js?features=default', array(), null, false);
+        
+        // 2. Compatibility script for feature detection and browser-specific fixes
+        wp_enqueue_script('mkb-compatibility', $assets_url . 'js/compatibility.js', ['jquery', 'mkb-polyfills'], $version, false);
+        
+        // 3. Standalone Initializer to set up the global namespace
+        wp_enqueue_script('mkb-standalone-initializer', $assets_url . 'js/standalone-initializer.js', ['mkb-compatibility'], $version, false);
+        
+        // 4. Main builder logic
         wp_enqueue_script('mkb-core-builder', $assets_url . 'js/builder.js', ['jquery', 'mkb-standalone-initializer'], $version, true);
-        wp_enqueue_script('mkb-section-templates', $assets_url . 'js/section-templates.js', ['jquery', 'mkb-core-builder'], $version, true);
-        wp_enqueue_script('mkb-wp-adapter', $assets_url . 'js/builder-wordpress.js', ['mkb-core-builder', 'mkb-section-templates'], $version, true);
+        
+        // 5. New Section Management Logic
+        wp_enqueue_script('mkb-section-management', $assets_url . 'js/section-management.js', ['mkb-core-builder'], $version, true);
+
+        // 6. WordPress Adapter to connect the builder to WP
+        wp_enqueue_script('mkb-wp-adapter', $assets_url . 'js/builder-wordpress.js', ['mkb-core-builder', 'mkb-section-management'], $version, true);
+        
+        // 7. Other managers
         wp_enqueue_script('mkb-template-manager', $assets_url . 'js/template-manager.js', ['mkb-wp-adapter'], $version, true);
         wp_enqueue_script('mkb-premium-access', $assets_url . 'js/premium-access-control.js', ['mkb-wp-adapter'], $version, true);
 
-        // Localize script with data for the React app
+        // Localize script with data for the application
         wp_localize_script('mkb-core-builder', 'mkbData', [
             'ajaxUrl'    => admin_url('admin-ajax.php'),
             'restUrl'    => rest_url('media-kit/v1/'),
@@ -146,14 +143,11 @@ class Media_Kit_Builder_URL_Router {
     }
     
     /**
-     * Renders the main builder page by loading the builder template within a proper HTML structure.
-     * This version uses more targeted WordPress functions to avoid theme/plugin conflicts.
+     * Renders the main builder page in an isolated HTML document.
      */
     private function show_builder_page() {
-        // Enqueue assets for this page.
         $this->enqueue_builder_assets();
         
-        // Make variables available to the template.
         $entry_key = get_query_var('mkb_entry_key');
         $access_tier = function_exists('mkb_get_user_access_tier') ? mkb_get_user_access_tier() : 'guest';
         $template_file = MKB_PLUGIN_DIR . 'templates/builder.php';
@@ -166,14 +160,10 @@ class Media_Kit_Builder_URL_Router {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title><?php echo esc_html__('Media Kit Builder', 'media-kit-builder'); ?> - <?php bloginfo('name'); ?></title>
             <?php
-            /**
-             * Using wp_print_styles() and wp_print_head_scripts() creates a more isolated
-             * environment for the builder, preventing conflicts from other plugins or themes
-             * that might also hook into the standard wp_head().
-             */
+            // Using wp_print_styles() and wp_print_head_scripts() creates an isolated
+            // environment, preventing conflicts from other plugins or the active theme.
             if (is_user_logged_in()) {
                 wp_print_styles('admin-bar');
-                wp_print_scripts('admin-bar');
             }
             wp_print_styles();
             wp_print_head_scripts();
@@ -181,23 +171,17 @@ class Media_Kit_Builder_URL_Router {
         </head>
         <body class="mkb-builder-body">
             <?php 
-            // Render the WordPress admin bar for logged-in users.
             if (is_user_logged_in()) {
                 wp_admin_bar_render(); 
             }
             
-            // Include the builder's main content template.
             if (file_exists($template_file)) {
                 include $template_file;
             } else {
-                wp_die('Builder template is missing.');
+                wp_die('Error: The main builder template is missing.');
             }
 
-            /**
-             * Using wp_print_footer_scripts() ensures that only scripts specifically
-             * enqueued for the footer are printed, which is where the main builder
-             * application logic should be loaded.
-             */
+            // Prints only the scripts enqueued for the footer.
             wp_print_footer_scripts();
             ?>
         </body>
@@ -205,25 +189,64 @@ class Media_Kit_Builder_URL_Router {
         <?php
     }
     
-    // Stubs for other pages - you can fill these in similarly
+    /**
+     * Renders the preview page in an isolated HTML document.
+     */
     private function show_preview_page() {
-        // This should also be a full HTML page with wp_head() and wp_footer()
+        // You would create a specific enqueue function for the preview page assets
+        // wp_enqueue_script('mkb-preview-script', '...');
+        // wp_enqueue_style('mkb-preview-style', '...');
+        
         $template_file = MKB_PLUGIN_DIR . 'templates/preview.php';
-        if(file_exists($template_file)){
-            include $template_file;
-        } else {
-             wp_die('Preview page is not yet implemented.');
-        }
+        ?>
+        <!DOCTYPE html>
+        <html <?php language_attributes(); ?>>
+        <head>
+            <title>Media Kit Preview</title>
+            <?php wp_print_styles(); wp_print_head_scripts(); ?>
+        </head>
+        <body>
+            <?php 
+            if(file_exists($template_file)){
+                include $template_file;
+            } else {
+                 wp_die('Preview template is missing.');
+            }
+            wp_print_footer_scripts(); 
+            ?>
+        </body>
+        </html>
+        <?php
     }
 
+    /**
+     * Renders the gallery page in an isolated HTML document.
+     */
     private function show_gallery_page() {
-        // This should also be a full HTML page with wp_head() and wp_footer()
+        // You would create a specific enqueue function for the gallery page assets
+        // wp_enqueue_script('mkb-gallery-script', '...');
+        // wp_enqueue_style('mkb-gallery-style', '...');
+
         $template_file = MKB_PLUGIN_DIR . 'templates/gallery.php';
-        if(file_exists($template_file)){
-            include $template_file;
-        } else {
-            wp_die('Gallery page is not yet implemented.');
-        }
+        ?>
+        <!DOCTYPE html>
+        <html <?php language_attributes(); ?>>
+        <head>
+            <title>Template Gallery</title>
+            <?php wp_print_styles(); wp_print_head_scripts(); ?>
+        </head>
+        <body>
+            <?php 
+            if(file_exists($template_file)){
+                include $template_file;
+            } else {
+                wp_die('Gallery template is missing.');
+            }
+            wp_print_footer_scripts(); 
+            ?>
+        </body>
+        </html>
+        <?php
     }
 }
 
