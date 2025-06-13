@@ -71,8 +71,14 @@
                     this.setupDelayedInitialization();
                     return;
                 }
+                // Debug elements before setting up tabs
+                console.log('Container:', this.elements.container ? 'found' : 'not found');
+                console.log('Tab elements:', this.elements.tabs ? this.elements.tabs.length : 'not found');
+                console.log('Tab content elements:', this.elements.tabContents ? this.elements.tabContents.length : 'not found');
+                
                 this.setupTabs();
                 this.setupComponentPalette();
+                this.setupComponentCategories();
                 this.setupDragAndDrop();
                 this.setupSectionReordering();
                 this.setupAddSectionButton();
@@ -143,27 +149,51 @@
                 preview: document.querySelector(this.config.previewContainer),
                 palette: document.querySelector(this.config.componentPalette),
                 designPanel: document.querySelector('#design-panel'),
-                saveButton: document.querySelector('#save-btn'),
-                undoButton: document.querySelector('#undo-btn'),
-                redoButton: document.querySelector('#redo-btn'),
+                saveButton: document.querySelector('#save-button'),
+                undoButton: document.querySelector('#undo-button'),
+                redoButton: document.querySelector('#redo-button'),
                 saveStatus: document.querySelector('#save-status'),
                 tabs: document.querySelectorAll('.sidebar-tab'),
-                tabContents: document.querySelectorAll('.tab-content')
+                tabContents: document.querySelectorAll('.tab-content'),
+                sidebar: document.querySelector('.builder-sidebar'),
+                sidebarContent: document.querySelector('.sidebar-content')
             };
         }
         setupTabs() {
-            if (!this.elements.tabs || !this.elements.tabContents) return;
+            if (!this.elements.tabs) {
+                console.warn('No tabs found in the builder');
+                return;
+            }
+            
+            // Debug the tab elements
+            console.log('Found tabs:', this.elements.tabs.length);
+            
             this.elements.tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
                     try {
-                        this.elements.tabs.forEach(t => t.classList.remove('active'));
-                        this.elements.tabContents.forEach(c => c.classList.remove('active'));
-                        tab.classList.add('active');
+                        // Debug which tab was clicked
                         const tabId = tab.getAttribute('data-tab');
-                        const tabContent = this.elements.container.querySelector(`#${tabId}-tab`);
+                        console.log('Tab clicked:', tabId);
+                        
+                        // Remove active class from all tabs and tab contents
+                        this.elements.tabs.forEach(t => t.classList.remove('active'));
+                        
+                        // Get all tab contents directly from the DOM
+                        const allTabContents = document.querySelectorAll('.tab-content');
+                        allTabContents.forEach(c => c.classList.remove('active'));
+                        
+                        // Add active class to clicked tab
+                        tab.classList.add('active');
+                        
+                        // Find the corresponding tab content
+                        const tabContent = document.getElementById(`${tabId}-tab`);
+                        console.log('Tab content found:', tabContent ? 'yes' : 'no');
+                        
                         if (tabContent) {
                             tabContent.classList.add('active');
                             this.emit('tab-changed', { tab: tabId });
+                        } else {
+                            console.error(`Tab content not found for ${tabId}-tab`);
                         }
                     } catch (error) {
                         this.handleError(error, 'tab switching');
@@ -171,10 +201,50 @@
                 });
             });
         }
+        setupComponentCategories() {
+            try {
+                const categoryButtons = document.querySelectorAll('.component-categories .category-button');
+                console.log('Found category buttons:', categoryButtons.length);
+                
+                if (categoryButtons.length > 0) {
+                    categoryButtons.forEach(button => {
+                        button.addEventListener('click', () => {
+                            // Remove active class from all buttons
+                            categoryButtons.forEach(btn => btn.classList.remove('active'));
+                            // Add active class to clicked button
+                            button.classList.add('active');
+                            
+                            const category = button.getAttribute('data-category');
+                            console.log('Category selected:', category);
+                            
+                            // Filter components based on category
+                            const components = this.elements.palette.querySelectorAll('.component-item');
+                            components.forEach(component => {
+                                if (category === 'all' || component.getAttribute('data-category') === category) {
+                                    component.style.display = 'block';
+                                } else {
+                                    component.style.display = 'none';
+                                }
+                            });
+                        });
+                    });
+                }
+            } catch (error) {
+                this.handleError(error, 'component categories setup');
+            }
+        }
+        
         setupComponentPalette() {
             try {
-                if (!this.elements.palette) return;
+                if (!this.elements.palette) {
+                    console.error('Component palette element not found');
+                    return;
+                }
+                console.log('Setting up component palette:', this.elements.palette.id);
+                
                 const components = this.elements.palette.querySelectorAll('.component-item');
+                console.log('Found components:', components.length);
+                
                 components.forEach(component => {
                     component.addEventListener('dragstart', e => {
                         try {
