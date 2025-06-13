@@ -1,461 +1,394 @@
 /**
  * Media Kit Builder - Debug Helper
- * 
- * This file provides debugging utilities for the Media Kit Builder.
+ *
+ * This script provides debugging tools to help troubleshoot issues with the Media Kit Builder.
+ * It monitors initialization, catches errors, and provides a debugging interface.
  */
 
 (function() {
     'use strict';
-    
-    console.log('🔍 Debug helper initializing...');
-    
-    // Debug namespace
-    window.MKB_DEBUG = window.MKB_DEBUG || {};
-    
-    // Configuration
-    const config = {
-        enabled: true,
-        logToConsole: true,
-        logToUI: true,
-        detailedErrors: true
-    };
-    
-    // Debug log container
-    let logContainer = null;
-    const logEntries = [];
-    
-    /**
-     * Initialize debug helper
-     */
-    function init() {
-        console.log('[Debug Helper] Initializing...');
-        
-        // Create log container if logging to UI is enabled
-        if (config.logToUI) {
-            createLogContainer();
-        }
-        
-        // Set up global error handlers
-        setupErrorHandlers();
-        
-        // Expose debug methods
-        exposeDebugMethods();
-        
-        // Inspect global objects
-        setTimeout(inspectGlobalObjects, 1000);
-        
-        console.log('[Debug Helper] Initialized');
-    }
-    
-    /**
-     * Create log container
-     */
-    function createLogContainer() {
-        // Check if container already exists
-        if (document.getElementById('mkb-debug-log')) {
-            logContainer = document.getElementById('mkb-debug-log');
-            return;
-        }
-        
-        // Create container
-        logContainer = document.createElement('div');
-        logContainer.id = 'mkb-debug-log';
-        logContainer.className = 'mkb-debug-log';
-        logContainer.style.cssText = `
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            width: 400px;
-            max-height: 300px;
-            overflow-y: auto;
-            background-color: rgba(0, 0, 0, 0.8);
-            color: #00ff00;
-            font-family: monospace;
-            font-size: 12px;
-            padding: 10px;
-            border-radius: 5px;
-            z-index: 9999;
-            display: none;
-        `;
-        
-        // Create header
-        const header = document.createElement('div');
-        header.className = 'mkb-debug-header';
-        header.innerHTML = `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <span>Media Kit Builder Debug Log</span>
-                <div>
-                    <button id="mkb-debug-clear" style="background: none; border: none; color: #ff5555; cursor: pointer; margin-right: 10px;">Clear</button>
-                    <button id="mkb-debug-close" style="background: none; border: none; color: #ff5555; cursor: pointer;">Close</button>
+
+    console.log('📊 Media Kit Builder Debug Helper - Loading...');
+
+    // Debug panel HTML
+    const debugPanelHTML = `
+        <div id="mkb-debug-panel" style="position: fixed; bottom: 0; right: 0; width: 350px; height: 30px; background: #2a2a2a; color: #0ea5e9; z-index: 99999; font-family: monospace; font-size: 12px; overflow: hidden; transition: height 0.3s ease; box-shadow: 0 0 10px rgba(0,0,0,0.5);">
+            <div id="mkb-debug-header" style="padding: 5px 10px; background: #1a1a1a; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <div>Media Kit Builder Debug Console</div>
+                <div id="mkb-debug-status">Initializing...</div>
+            </div>
+            <div id="mkb-debug-content" style="padding: 10px; height: calc(100% - 30px); overflow-y: auto;">
+                <div id="mkb-debug-performance">
+                    <h3>Initialization Stages</h3>
+                    <div id="mkb-performance-metrics"></div>
+                </div>
+                <div id="mkb-debug-errors" style="margin-top: 15px;">
+                    <h3>Errors (0)</h3>
+                    <div id="mkb-error-list"></div>
+                </div>
+                <div id="mkb-debug-state" style="margin-top: 15px;">
+                    <h3>Builder State</h3>
+                    <div id="mkb-state-summary"></div>
+                </div>
+                <div id="mkb-debug-actions" style="margin-top: 15px;">
+                    <h3>Debug Actions</h3>
+                    <button id="mkb-debug-force-init" style="background: #0ea5e9; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-right: 5px;">Force Init</button>
+                    <button id="mkb-debug-reload-scripts" style="background: #0ea5e9; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">Reload Scripts</button>
+                </div>
+                <div id="mkb-debug-console" style="margin-top: 15px;">
+                    <h3>Console</h3>
+                    <div id="mkb-console-output" style="background: #1a1a1a; padding: 5px; height: 100px; overflow-y: auto; font-family: monospace; font-size: 11px; white-space: pre-wrap;"></div>
                 </div>
             </div>
-            <div style="height: 1px; background-color: #333; margin-bottom: 10px;"></div>
-        `;
+        </div>
+    `;
+
+    // Debug state
+    const debugState = {
+        errors: [],
+        logs: [],
+        initialized: false,
+        performanceMetrics: {}
+    };
+
+    // Add debug panel to DOM
+    function addDebugPanel() {
+        // Check if debug panel already exists
+        if (document.getElementById('mkb-debug-panel')) {
+            return;
+        }
+
+        // Create debug panel
+        const debugPanel = document.createElement('div');
+        debugPanel.innerHTML = debugPanelHTML;
+        document.body.appendChild(debugPanel.firstElementChild);
+
+        // Setup toggle functionality
+        const debugHeader = document.getElementById('mkb-debug-header');
+        const debugPanel2 = document.getElementById('mkb-debug-panel');
         
-        // Create log content
-        const content = document.createElement('div');
-        content.id = 'mkb-debug-content';
-        content.className = 'mkb-debug-content';
-        
-        // Add to container
-        logContainer.appendChild(header);
-        logContainer.appendChild(content);
-        
-        // Add to document
-        document.body.appendChild(logContainer);
-        
-        // Set up event listeners
-        document.getElementById('mkb-debug-clear').addEventListener('click', clearLog);
-        document.getElementById('mkb-debug-close').addEventListener('click', toggleLogContainer);
-        
-        // Add keyboard shortcut to toggle log container (Ctrl+Shift+D)
-        document.addEventListener('keydown', function(e) {
-            if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-                toggleLogContainer();
-            }
+        debugHeader.addEventListener('click', function() {
+            const isExpanded = debugPanel2.style.height !== '30px';
+            debugPanel2.style.height = isExpanded ? '30px' : '400px';
         });
-    }
-    
-    /**
-     * Toggle log container visibility
-     */
-    function toggleLogContainer() {
-        if (!logContainer) return;
-        
-        const isVisible = logContainer.style.display !== 'none';
-        logContainer.style.display = isVisible ? 'none' : 'block';
-    }
-    
-    /**
-     * Clear log
-     */
-    function clearLog() {
-        if (!logContainer) return;
-        
-        const content = document.getElementById('mkb-debug-content');
-        if (content) {
-            content.innerHTML = '';
-        }
-        
-        logEntries.length = 0;
-    }
-    
-    /**
-     * Add log entry
-     */
-    function addLogEntry(message, type = 'info', data = null) {
-        // Log to console
-        if (config.logToConsole) {
-            const consoleMethod = type === 'error' ? console.error : 
-                                type === 'warning' ? console.warn : 
-                                type === 'success' ? console.info : console.log;
-            
-            if (data) {
-                consoleMethod(`[MKB_DEBUG] ${message}`, data);
-            } else {
-                consoleMethod(`[MKB_DEBUG] ${message}`);
-            }
-        }
-        
-        // Log to UI
-        if (config.logToUI && logContainer) {
-            const content = document.getElementById('mkb-debug-content');
-            if (!content) return;
-            
-            // Create entry
-            const entry = {
-                timestamp: new Date(),
-                message: message,
-                type: type,
-                data: data
-            };
-            
-            // Add to log entries
-            logEntries.push(entry);
-            
-            // Limit log entries to 100
-            if (logEntries.length > 100) {
-                logEntries.shift();
-                content.firstChild && content.removeChild(content.firstChild);
-            }
-            
-            // Create log entry element
-            const entryEl = document.createElement('div');
-            entryEl.className = `mkb-debug-entry ${type}`;
-            entryEl.style.cssText = `
-                margin-bottom: 5px;
-                padding-bottom: 5px;
-                border-bottom: 1px solid #333;
-                color: ${type === 'error' ? '#ff5555' : 
-                       type === 'warning' ? '#ffaa55' : 
-                       type === 'success' ? '#55ff55' : '#ffffff'};
-            `;
-            
-            // Create timestamp
-            const timestamp = document.createElement('span');
-            timestamp.className = 'mkb-debug-timestamp';
-            timestamp.textContent = entry.timestamp.toISOString().substring(11, 19);
-            timestamp.style.cssText = `
-                color: #888;
-                margin-right: 8px;
-            `;
-            
-            // Create message
-            const messageEl = document.createElement('span');
-            messageEl.className = 'mkb-debug-message';
-            messageEl.textContent = entry.message;
-            
-            // Add to entry
-            entryEl.appendChild(timestamp);
-            entryEl.appendChild(messageEl);
-            
-            // Add data if available
-            if (data) {
-                const dataEl = document.createElement('pre');
-                dataEl.className = 'mkb-debug-data';
-                dataEl.textContent = typeof data === 'object' ? JSON.stringify(data, null, 2) : data.toString();
-                dataEl.style.cssText = `
-                    margin-top: 5px;
-                    margin-left: 20px;
-                    padding: 5px;
-                    background-color: rgba(0, 0, 0, 0.3);
-                    border-radius: 3px;
-                    white-space: pre-wrap;
-                    font-size: 11px;
-                    display: none;
-                `;
-                
-                // Create toggle
-                const toggle = document.createElement('span');
-                toggle.className = 'mkb-debug-toggle';
-                toggle.textContent = ' [+]';
-                toggle.style.cssText = `
-                    color: #888;
-                    cursor: pointer;
-                `;
-                
-                // Add toggle event
-                toggle.addEventListener('click', function() {
-                    const isVisible = dataEl.style.display !== 'none';
-                    dataEl.style.display = isVisible ? 'none' : 'block';
-                    toggle.textContent = isVisible ? ' [+]' : ' [-]';
-                });
-                
-                messageEl.appendChild(toggle);
-                entryEl.appendChild(dataEl);
-            }
-            
-            // Add to content
-            content.appendChild(entryEl);
-            
-            // Scroll to bottom
-            content.scrollTop = content.scrollHeight;
-        }
-    }
-    
-    /**
-     * Set up error handlers
-     */
-    function setupErrorHandlers() {
-        // Global error handler
-        window.addEventListener('error', function(event) {
-            const error = {
-                message: event.message,
-                filename: event.filename,
-                lineno: event.lineno,
-                colno: event.colno,
-                stack: event.error ? event.error.stack : null
-            };
-            
-            addLogEntry(`Error: ${error.message}`, 'error', error);
-            
-            // Don't prevent default error handling
-            return false;
+
+        // Setup debug actions
+        const forceInitButton = document.getElementById('mkb-debug-force-init');
+        forceInitButton.addEventListener('click', function() {
+            forceInitialization();
         });
-        
-        // Unhandled promise rejection handler
-        window.addEventListener('unhandledrejection', function(event) {
-            const error = {
-                message: event.reason?.message || 'Unhandled Promise rejection',
-                stack: event.reason?.stack || null
-            };
-            
-            addLogEntry(`Promise Error: ${error.message}`, 'error', error);
-            
-            // Don't prevent default error handling
-            return false;
+
+        const reloadScriptsButton = document.getElementById('mkb-debug-reload-scripts');
+        reloadScriptsButton.addEventListener('click', function() {
+            reloadScripts();
         });
+
+        // Update metrics initially
+        updatePerformanceMetrics();
+        updateErrorList();
+        updateStateView();
     }
-    
-    /**
-     * Expose debug methods
-     */
-    function exposeDebugMethods() {
-        window.MKB_DEBUG = {
-            log: function(message, data) {
-                addLogEntry(message, 'info', data);
-            },
-            info: function(message, data) {
-                addLogEntry(message, 'info', data);
-            },
-            success: function(message, data) {
-                addLogEntry(message, 'success', data);
-            },
-            warn: function(message, data) {
-                addLogEntry(message, 'warning', data);
-            },
-            error: function(message, data) {
-                addLogEntry(message, 'error', data);
-            },
-            clear: clearLog,
-            toggle: toggleLogContainer,
-            getState: getBuilderState,
-            inspect: inspectGlobalObjects,
-            fix: applyFixes
-        };
-    }
-    
-    /**
-     * Get builder state
-     */
-    function getBuilderState() {
-        // Check if MediaKitBuilder is available
-        if (!window.MediaKitBuilder) {
-            addLogEntry('MediaKitBuilder not found', 'error');
-            return null;
-        }
-        
-        // Get builder state
-        const state = {
-            global: window.MediaKitBuilder.global || {},
-            instance: window.MediaKitBuilder.global?.instance || null,
-            adapter: window.wpAdapter || null,
-            initialized: !!(window.MediaKitBuilder.global?.initialized)
-        };
-        
-        addLogEntry('Builder state retrieved', 'info', state);
-        return state;
-    }
-    
-    /**
-     * Inspect global objects
-     */
-    function inspectGlobalObjects() {
-        // Check MediaKitBuilder
-        const mkbState = {
-            exists: typeof window.MediaKitBuilder !== 'undefined',
-            isFunction: typeof window.MediaKitBuilder === 'function',
-            hasInit: typeof window.MediaKitBuilder?.init === 'function',
-            hasGlobal: typeof window.MediaKitBuilder?.global !== 'undefined',
-            hasInstance: typeof window.MediaKitBuilder?.global?.instance !== 'undefined',
-            instanceInitialized: !!(window.MediaKitBuilder?.global?.instance?.state?.initialized)
-        };
-        
-        // Check WordPress adapter
-        const wpState = {
-            adapterExists: typeof window.wpAdapter !== 'undefined',
-            builderAttached: !!(window.wpAdapter?.builder),
-            builderInitialized: !!(window.wpAdapter?.builder?.state?.initialized),
-            isInitialized: !!(window.wpAdapter?.isInitialized)
-        };
-        
-        // Check jQuery
-        const jQueryState = {
-            exists: typeof jQuery !== 'undefined',
-            version: jQuery?.fn?.jquery || 'unknown'
-        };
-        
-        // Log results
-        addLogEntry('Global object inspection', 'info', {
-            MediaKitBuilder: mkbState,
-            WordPressAdapter: wpState,
-            jQuery: jQueryState,
-            window: {
-                mediaKitBuilder: typeof window.mediaKitBuilder !== 'undefined'
-            }
-        });
-        
-        // Check for issues
-        if (!mkbState.exists) {
-            addLogEntry('MediaKitBuilder not found in global scope', 'error');
-        } else if (!mkbState.hasGlobal) {
-            addLogEntry('MediaKitBuilder.global namespace not found', 'error');
-        } else if (!mkbState.hasInstance) {
-            addLogEntry('MediaKitBuilder.global.instance not found', 'error');
-        } else if (!mkbState.instanceInitialized) {
-            addLogEntry('MediaKitBuilder instance not initialized', 'warning');
-        }
-        
-        if (!wpState.adapterExists) {
-            addLogEntry('WordPress adapter not found', 'error');
-        } else if (!wpState.builderAttached) {
-            addLogEntry('Builder not attached to WordPress adapter', 'error');
-        } else if (!wpState.isInitialized) {
-            addLogEntry('WordPress adapter not initialized', 'warning');
-        }
-        
-        return {
-            MediaKitBuilder: mkbState,
-            WordPressAdapter: wpState,
-            jQuery: jQueryState
-        };
-    }
-    
-    /**
-     * Apply fixes
-     */
-    function applyFixes() {
-        addLogEntry('Applying fixes...', 'info');
-        
-        // Fix 1: Ensure MediaKitBuilder global namespace
-        if (typeof window.MediaKitBuilder === 'undefined') {
-            window.MediaKitBuilder = function() {};
-            window.MediaKitBuilder.global = {};
-            window.MediaKitBuilder.init = function() {
-                console.log('MediaKitBuilder.init called (from fix)');
-                if (window.MediaKitBuilder.global.instance) {
-                    window.MediaKitBuilder.global.instance.init();
-                }
-            };
-            addLogEntry('Created MediaKitBuilder global namespace', 'success');
-        }
-        
-        // Fix 2: Create WordPress adapter if needed
-        if (typeof window.wpAdapter === 'undefined' && typeof WordPressAdapter === 'function') {
-            // Create default config
-            const defaultConfig = {
-                ajaxUrl: '/wp-admin/admin-ajax.php',
-                debugMode: true
-            };
-            
-            try {
-                window.wpAdapter = new WordPressAdapter(defaultConfig);
-                addLogEntry('Created WordPress adapter with default config', 'success');
-            } catch (error) {
-                addLogEntry('Failed to create WordPress adapter', 'error', error);
-            }
-        }
-        
-        // Fix 3: Try to initialize MediaKitBuilder
-        if (typeof window.MediaKitBuilder.init === 'function') {
-            try {
+
+    // Force initialization
+    function forceInitialization() {
+        try {
+            if (window.MediaKitBuilder && window.MediaKitBuilder.forceInit) {
+                logToConsole('Forcing initialization via MediaKitBuilder.forceInit()');
+                window.MediaKitBuilder.forceInit();
+            } else if (window.MediaKitBuilder && window.MediaKitBuilder.safeInit) {
+                logToConsole('Forcing initialization via MediaKitBuilder.safeInit()');
+                window.MediaKitBuilder.safeInit();
+            } else if (window.MediaKitBuilder && window.MediaKitBuilder.init) {
+                logToConsole('Forcing initialization via MediaKitBuilder.init()');
                 window.MediaKitBuilder.init();
-                addLogEntry('Called MediaKitBuilder.init()', 'success');
-            } catch (error) {
-                addLogEntry('Failed to call MediaKitBuilder.init()', 'error', error);
+            } else {
+                logToConsole('ERROR: Cannot force initialization - MediaKitBuilder not available');
             }
+        } catch (error) {
+            logToConsole(`ERROR: Force initialization failed: ${error.message}`);
+            console.error('Force initialization error:', error);
+        }
+    }
+
+    // Reload scripts
+    function reloadScripts() {
+        try {
+            logToConsole('Reloading MediaKitBuilder scripts...');
+            
+            // Get script paths from existing scripts
+            const scriptPaths = [];
+            document.querySelectorAll('script').forEach(script => {
+                if (script.src && script.src.includes('media-kit-builder')) {
+                    scriptPaths.push(script.src);
+                }
+            });
+            
+            // Remove existing scripts
+            document.querySelectorAll('script').forEach(script => {
+                if (script.src && script.src.includes('media-kit-builder')) {
+                    script.remove();
+                }
+            });
+            
+            // Reload scripts in sequence
+            function loadNextScript(index) {
+                if (index >= scriptPaths.length) {
+                    logToConsole('All scripts reloaded, attempting initialization');
+                    setTimeout(forceInitialization, 500);
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = scriptPaths[index];
+                script.onload = function() {
+                    logToConsole(`Loaded script: ${scriptPaths[index]}`);
+                    loadNextScript(index + 1);
+                };
+                script.onerror = function() {
+                    logToConsole(`ERROR: Failed to load script: ${scriptPaths[index]}`);
+                    loadNextScript(index + 1);
+                };
+                document.head.appendChild(script);
+            }
+            
+            loadNextScript(0);
+        } catch (error) {
+            logToConsole(`ERROR: Script reload failed: ${error.message}`);
+            console.error('Script reload error:', error);
+        }
+    }
+
+    // Update performance metrics
+    function updatePerformanceMetrics() {
+        const metricsContainer = document.getElementById('mkb-performance-metrics');
+        if (!metricsContainer) return;
+
+        // Get performance metrics from MediaKitBuilder
+        const metrics = window.MediaKitBuilder && window.MediaKitBuilder.performance ? 
+            window.MediaKitBuilder.performance.stages : {};
+        
+        // Store metrics in debug state
+        debugState.performanceMetrics = metrics;
+
+        // Calculate times
+        const startTime = window.MediaKitBuilder && window.MediaKitBuilder.performance ? 
+            window.MediaKitBuilder.performance.loadStart : 0;
+        
+        let html = '';
+        if (startTime) {
+            Object.entries(metrics).forEach(([stage, timestamp]) => {
+                if (timestamp) {
+                    const timeDiff = timestamp - startTime;
+                    html += `<div><span style="color: #94a3b8;">${stage}:</span> ${timeDiff}ms</div>`;
+                }
+            });
+        } else {
+            html = '<div style="color: #dc2626;">Performance metrics not available</div>';
+        }
+
+        metricsContainer.innerHTML = html;
+    }
+
+    // Update error list
+    function updateErrorList() {
+        const errorList = document.getElementById('mkb-error-list');
+        const errorCount = document.querySelector('#mkb-debug-errors h3');
+        if (!errorList || !errorCount) return;
+
+        // Get errors from MediaKitBuilder
+        let errors = [];
+        if (window.MediaKitBuilder && window.MediaKitBuilder.errors) {
+            errors = window.MediaKitBuilder.errors;
+        } else if (window.MediaKitBuilder && window.MediaKitBuilder.global && 
+                  window.MediaKitBuilder.global.instance && 
+                  window.MediaKitBuilder.global.instance.state && 
+                  window.MediaKitBuilder.global.instance.state.errors) {
+            errors = window.MediaKitBuilder.global.instance.state.errors;
         }
         
-        // Re-inspect global objects
-        setTimeout(inspectGlobalObjects, 500);
-        
-        return true;
+        // Store errors in debug state
+        debugState.errors = errors;
+
+        // Update error count
+        errorCount.textContent = `Errors (${errors.length})`;
+
+        // Update error list
+        if (errors.length === 0) {
+            errorList.innerHTML = '<div style="color: #22c55e;">No errors detected</div>';
+            return;
+        }
+
+        let html = '';
+        errors.forEach((error, index) => {
+            const message = error.message || (error.error ? error.error.message : 'Unknown error');
+            const context = error.context || 'unknown';
+            
+            html += `
+                <div style="margin-bottom: 10px; padding: 5px; background: #2a2a2a; border-left: 3px solid #dc2626;">
+                    <div style="color: #dc2626; font-weight: bold;">${index + 1}. ${message}</div>
+                    <div style="color: #94a3b8; font-size: 11px;">Context: ${context}</div>
+                </div>
+            `;
+        });
+
+        errorList.innerHTML = html;
     }
-    
+
+    // Update state view
+    function updateStateView() {
+        const stateView = document.getElementById('mkb-state-summary');
+        if (!stateView) return;
+
+        // Get state from MediaKitBuilder
+        let state = {};
+        if (window.MediaKitBuilder && window.MediaKitBuilder.global && 
+            window.MediaKitBuilder.global.instance && 
+            window.MediaKitBuilder.global.instance.state) {
+            state = window.MediaKitBuilder.global.instance.state;
+        }
+
+        let html = '';
+        if (Object.keys(state).length === 0) {
+            html = '<div style="color: #dc2626;">Builder state not available</div>';
+        } else {
+            html += `
+                <div><span style="color: #94a3b8;">Initialized:</span> ${state.initialized ? '✅' : '❌'}</div>
+                <div><span style="color: #94a3b8;">Dirty:</span> ${state.isDirty ? '✅' : '❌'}</div>
+                <div><span style="color: #94a3b8;">Loading:</span> ${state.isLoading ? '✅' : '❌'}</div>
+                <div><span style="color: #94a3b8;">Has Selected Element:</span> ${state.selectedElement ? '✅' : '❌'}</div>
+                <div><span style="color: #94a3b8;">Has Selected Section:</span> ${state.selectedSection ? '✅' : '❌'}</div>
+                <div><span style="color: #94a3b8;">Undo Stack Size:</span> ${state.undoStack ? state.undoStack.length : 0}</div>
+                <div><span style="color: #94a3b8;">Redo Stack Size:</span> ${state.redoStack ? state.redoStack.length : 0}</div>
+            `;
+        }
+
+        stateView.innerHTML = html;
+    }
+
+    // Log to debug console
+    function logToConsole(message) {
+        const consoleOutput = document.getElementById('mkb-console-output');
+        if (!consoleOutput) return;
+
+        // Add timestamp
+        const timestamp = new Date().toISOString().substring(11, 19);
+        const logEntry = `[${timestamp}] ${message}`;
+        
+        // Store in debug state
+        debugState.logs.push(logEntry);
+        
+        // Limit logs to 100 entries
+        if (debugState.logs.length > 100) {
+            debugState.logs.shift();
+        }
+
+        // Update console output
+        consoleOutput.innerHTML = debugState.logs.join('\n');
+        
+        // Scroll to bottom
+        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+    }
+
+    // Check initialization status
+    function checkInitializationStatus() {
+        // Check if MediaKitBuilder is initialized
+        const isInitialized = window.MediaKitBuilder && 
+            window.MediaKitBuilder.global && 
+            window.MediaKitBuilder.global.instance && 
+            window.MediaKitBuilder.global.instance.state && 
+            window.MediaKitBuilder.global.instance.state.initialized;
+        
+        // Update status
+        const statusElement = document.getElementById('mkb-debug-status');
+        if (statusElement) {
+            if (isInitialized) {
+                statusElement.textContent = 'Initialized ✅';
+                statusElement.style.color = '#22c55e';
+            } else {
+                statusElement.textContent = 'Not Initialized ❌';
+                statusElement.style.color = '#dc2626';
+            }
+        }
+
+        // Store in debug state
+        debugState.initialized = isInitialized;
+
+        return isInitialized;
+    }
+
+    // Update debug panel
+    function updateDebugPanel() {
+        checkInitializationStatus();
+        updatePerformanceMetrics();
+        updateErrorList();
+        updateStateView();
+    }
+
+    // Initialize debug helper
+    function initDebugHelper() {
+        console.log('Initializing Media Kit Builder Debug Helper');
+        
+        // Add debug panel to DOM
+        if (document.body) {
+            addDebugPanel();
+        } else {
+            window.addEventListener('DOMContentLoaded', addDebugPanel);
+        }
+
+        // Setup periodic updates
+        setInterval(updateDebugPanel, 1000);
+
+        // Hook console methods to capture logs
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        const originalConsoleWarn = console.warn;
+
+        console.log = function() {
+            originalConsoleLog.apply(console, arguments);
+            const message = Array.from(arguments).map(arg => {
+                if (typeof arg === 'object') return JSON.stringify(arg);
+                return arg;
+            }).join(' ');
+            
+            if (message.includes('Media Kit Builder')) {
+                logToConsole(message);
+            }
+        };
+
+        console.error = function() {
+            originalConsoleError.apply(console, arguments);
+            const message = Array.from(arguments).map(arg => {
+                if (typeof arg === 'object') return JSON.stringify(arg);
+                return arg;
+            }).join(' ');
+            
+            if (message.includes('Media Kit Builder')) {
+                logToConsole(`ERROR: ${message}`);
+            }
+        };
+
+        console.warn = function() {
+            originalConsoleWarn.apply(console, arguments);
+            const message = Array.from(arguments).map(arg => {
+                if (typeof arg === 'object') return JSON.stringify(arg);
+                return arg;
+            }).join(' ');
+            
+            if (message.includes('Media Kit Builder')) {
+                logToConsole(`WARNING: ${message}`);
+            }
+        };
+
+        // Log initialization
+        logToConsole('Media Kit Builder Debug Helper initialized');
+    }
+
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', initDebugHelper);
     } else {
-        init();
+        initDebugHelper();
     }
+
+    console.log('📊 Media Kit Builder Debug Helper - Loaded');
 })();

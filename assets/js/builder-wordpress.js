@@ -64,27 +64,103 @@
             try {
                 // Check if we have the MediaKitBuilder class
                 if (typeof window.MediaKitBuilder.Core !== 'function') {
-                console.warn('MediaKitBuilder Core class not found. Will attempt to use a fallback version.');
-                window.MediaKitBuilder.Core = function(config) {
-                console.log('Fallback MediaKitBuilder.Core constructor called with config:', config);
-                this.config = config || {};
-                this.init = function() {
-                console.log('Fallback MediaKitBuilder.Core init called');
-                };
-                // Add missing methods for better compatibility
-                this.on = function(event, handler) {
-                        console.log('Fallback MediaKitBuilder.Core on method called:', event);
+                    console.warn('MediaKitBuilder Core class not found. Will attempt to use a fallback version.');
+                    window.MediaKitBuilder.Core = function(config) {
+                        console.log('Fallback MediaKitBuilder.Core constructor called with config:', config);
+                        this.config = config || {};
+                        this.state = {
+                            initialized: false,
+                            isDirty: false,
+                            isLoading: false,
+                            selectedElement: null,
+                            selectedSection: null,
+                            undoStack: [],
+                            redoStack: [],
+                            errors: []
+                        };
+                        this.eventHandlers = {};
+                        
+                        this.init = function() {
+                            console.log('Fallback MediaKitBuilder.Core init called');
+                            this.state.initialized = true;
+                            this.emit('initialized', { timestamp: new Date() });
+                        };
+                        
+                        // Add missing methods for better compatibility
+                        this.on = function(event, handler) {
+                            console.log('Fallback MediaKitBuilder.Core on method called:', event);
+                            if (!this.eventHandlers[event]) this.eventHandlers[event] = [];
+                            this.eventHandlers[event].push(handler);
                             return function() {}; // Return dummy unsubscribe function
+                        };
+                        
+                        this.off = function(event, handler) {
+                            console.log('Fallback MediaKitBuilder.Core off method called:', event);
+                            if (!this.eventHandlers[event]) return;
+                            this.eventHandlers[event] = this.eventHandlers[event].filter(h => h !== handler);
+                        };
+                        
+                        this.emit = function(event, data) {
+                            console.log('Fallback MediaKitBuilder.Core emit method called:', event, data);
+                            if (!this.eventHandlers[event]) return;
+                            const eventData = { ...data, _event: event, _timestamp: new Date() };
+                            this.eventHandlers[event].forEach(handler => {
+                                try {
+                                    handler(eventData);
+                                } catch (error) {
+                                    console.error(`Error in event handler for ${event}:`, error);
+                                }
+                            });
+                        };
+                        
+                        this.markDirty = function() {
+                            this.state.isDirty = true;
+                            this.emit('dirty-state-changed', { isDirty: true });
+                        };
+                        
+                        this.markClean = function() {
+                            this.state.isDirty = false;
+                            this.emit('dirty-state-changed', { isDirty: false });
+                        };
+                        
+                        this.setLoading = function(isLoading) {
+                            this.state.isLoading = isLoading;
+                            this.emit('loading-state-changed', { isLoading });
+                        };
+                        
+                        this.getBuilderState = function() {
+                            return {
+                                sections: [],
+                                components: {}
+                            };
+                        };
+                        
+                        this.saveStateToHistory = function() {
+                            console.log('Fallback saveStateToHistory called');
+                        };
+                        
+                        this.addComponent = function(componentType) {
+                            console.log('Fallback addComponent called:', componentType);
+                        };
+                        
+                        this.addSection = function(type, layout, components) {
+                            console.log('Fallback addSection called:', type, layout);
+                        };
+                        
+                        this.handleError = function(error, context) {
+                            console.error(`Error in ${context || 'unknown context'}:`, error);
+                            this.state.errors.push({
+                                error: error,
+                                context: context,
+                                timestamp: new Date().toISOString()
+                            });
+                            this.emit('error', { error, context });
+                        };
+                        
+                        // Make instance available globally
+                        window.MediaKitBuilder.global.instance = this;
                     };
-                    this.off = function(event, handler) {
-                        console.log('Fallback MediaKitBuilder.Core off method called:', event);
-                    };
-                    this.emit = function(event, data) {
-                        console.log('Fallback MediaKitBuilder.Core emit method called:', event, data);
-                    };
-                    // Make instance available globally
-                    window.MediaKitBuilder.global.instance = this;
-                };
+                }
             }
                 
                 // Check if elements are ready (from initializer)

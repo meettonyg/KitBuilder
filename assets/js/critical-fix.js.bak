@@ -1,0 +1,390 @@
+/**
+ * Media Kit Builder - Critical Initialization
+ * This file ensures the builder loads properly by fixing initialization sequence issues
+ */
+
+// Immediate execution
+(function() {
+    // Log initialization
+    console.log('🛠️ Media Kit Builder Critical Fix - Loading...');
+    
+    // Define essential global namespace if it doesn't exist
+    window.MediaKitBuilder = window.MediaKitBuilder || {};
+    window.MediaKitBuilder.global = window.MediaKitBuilder.global || {};
+    window.MediaKitBuilder.performance = window.MediaKitBuilder.performance || {};
+    
+    // Critical fix: track initialization stages
+    window.MediaKitBuilder.performance.loadStart = Date.now();
+    window.MediaKitBuilder.performance.stages = {
+        criticalFixLoaded: Date.now(),
+        compatibilityLoaded: false,
+        initializerLoaded: false,
+        coreInitialized: false,
+        buildComplete: false
+    };
+    
+    // Critical fix: track initialization errors
+    window.MediaKitBuilder.errors = [];
+    window.MediaKitBuilder.logError = function(error, context) {
+        console.error(`Media Kit Builder Error (${context}):`, error);
+        window.MediaKitBuilder.errors.push({
+            error: error,
+            context: context,
+            timestamp: new Date().toISOString()
+        });
+    };
+    
+    // Critical fix: ensure DOM elements exist
+    window.MediaKitBuilder.ensureElements = function() {
+        try {
+            console.log('Ensuring essential DOM elements exist...');
+            
+            // Core builder container
+            if (!document.getElementById('media-kit-builder')) {
+                console.log('Creating missing media-kit-builder container');
+                const container = document.createElement('div');
+                container.id = 'media-kit-builder';
+                container.className = 'media-kit-builder';
+                document.body.appendChild(container);
+            }
+            
+            // Preview container
+            if (!document.getElementById('media-kit-preview')) {
+                console.log('Creating missing media-kit-preview container');
+                const preview = document.createElement('div');
+                preview.id = 'media-kit-preview';
+                preview.className = 'media-kit-preview';
+                
+                // Append to builder container if it exists, or to body
+                const container = document.getElementById('media-kit-builder');
+                if (container) {
+                    container.appendChild(preview);
+                } else {
+                    document.body.appendChild(preview);
+                }
+            }
+            
+            // Component palette
+            if (!document.getElementById('component-palette')) {
+                console.log('Creating missing component-palette container');
+                const palette = document.createElement('div');
+                palette.id = 'component-palette';
+                palette.className = 'component-palette';
+                
+                // Find sidebar content to append to
+                const sidebarContent = document.querySelector('.sidebar-content');
+                if (sidebarContent) {
+                    sidebarContent.appendChild(palette);
+                } else {
+                    // Fallback to builder container
+                    const container = document.getElementById('media-kit-builder');
+                    if (container) {
+                        container.appendChild(palette);
+                    }
+                }
+            }
+            
+            window.MediaKitBuilder.performance.stages.elementsEnsured = Date.now();
+            console.log('Essential DOM elements verified');
+        } catch (error) {
+            window.MediaKitBuilder.logError(error, 'ensureElements');
+        }
+    };
+    
+    // Critical fix: ensure CSS styles are applied
+    window.MediaKitBuilder.ensureStyles = function() {
+        try {
+            console.log('Ensuring essential CSS styles are applied...');
+            
+            // Check if builder.css is loaded
+            const builderStylesLoaded = Array.from(document.styleSheets).some(sheet => {
+                try {
+                    return sheet.href && sheet.href.includes('builder.css');
+                } catch (e) {
+                    return false;
+                }
+            });
+            
+            if (!builderStylesLoaded) {
+                console.log('Critical CSS styles missing, applying emergency styles');
+                
+                // Inject emergency styles
+                const style = document.createElement('style');
+                style.textContent = `
+                    #media-kit-builder {
+                        background: #1a1a1a;
+                        color: #ffffff;
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                        min-height: 100vh;
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    
+                    .builder-toolbar {
+                        background: #2a2a2a;
+                        padding: 10px;
+                        display: flex;
+                        justify-content: space-between;
+                        border-bottom: 1px solid #404040;
+                    }
+                    
+                    .builder-main {
+                        display: flex;
+                        flex: 1;
+                        overflow: hidden;
+                    }
+                    
+                    .builder-sidebar {
+                        width: 300px;
+                        background: #2a2a2a;
+                        border-right: 1px solid #404040;
+                        overflow: hidden;
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    
+                    .sidebar-tabs {
+                        display: flex;
+                        border-bottom: 1px solid #404040;
+                    }
+                    
+                    .sidebar-tab {
+                        flex: 1;
+                        padding: 10px;
+                        text-align: center;
+                        color: #94a3b8;
+                        background: none;
+                        border: none;
+                        cursor: pointer;
+                    }
+                    
+                    .sidebar-tab.active {
+                        color: #0ea5e9;
+                        border-bottom: 2px solid #0ea5e9;
+                    }
+                    
+                    .sidebar-content {
+                        padding: 15px;
+                        overflow-y: auto;
+                        flex: 1;
+                    }
+                    
+                    .tab-content {
+                        display: none;
+                    }
+                    
+                    .tab-content.active {
+                        display: block;
+                    }
+                    
+                    .builder-content {
+                        flex: 1;
+                        overflow: auto;
+                        background: #1a1a1a;
+                        padding: 20px;
+                    }
+                    
+                    .media-kit-preview {
+                        background: #ffffff;
+                        color: #1a1a1a;
+                        margin: 0 auto;
+                        max-width: 800px;
+                        min-height: 80vh;
+                        border-radius: 8px;
+                        overflow: hidden;
+                        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+                    }
+                    
+                    .drop-zone {
+                        min-height: 100px;
+                        border: 2px dashed transparent;
+                        padding: 10px;
+                        transition: all 0.2s ease;
+                    }
+                    
+                    .drop-zone.empty {
+                        border-color: #e2e8f0;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 30px;
+                    }
+                    
+                    .drop-zone.empty::after {
+                        content: 'Drop components here';
+                        color: #94a3b8;
+                        font-size: 14px;
+                    }
+                    
+                    .component-item {
+                        background: #333333;
+                        border: 1px solid #404040;
+                        border-radius: 6px;
+                        padding: 10px;
+                        margin-bottom: 10px;
+                        cursor: grab;
+                        text-align: center;
+                        transition: all 0.2s ease;
+                    }
+                    
+                    .component-item:hover {
+                        background: #3a3a3a;
+                        border-color: #0ea5e9;
+                    }
+                    
+                    .component-icon {
+                        margin-bottom: 5px;
+                    }
+                    
+                    .component-name {
+                        font-size: 12px;
+                        color: #94a3b8;
+                    }
+                    
+                    .button {
+                        background: #333333;
+                        border: none;
+                        color: #ffffff;
+                        padding: 8px 12px;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 13px;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                    }
+                    
+                    .button-primary {
+                        background: #0ea5e9;
+                    }
+                    
+                    .editable-element {
+                        background: #ffffff;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 6px;
+                        margin-bottom: 15px;
+                        position: relative;
+                        overflow: hidden;
+                    }
+                    
+                    .element-header {
+                        background: #f8fafc;
+                        padding: 8px 12px;
+                        border-bottom: 1px solid #e2e8f0;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+                    
+                    .element-title {
+                        font-weight: 600;
+                        font-size: 14px;
+                        color: #475569;
+                    }
+                    
+                    .element-controls {
+                        display: flex;
+                        gap: 3px;
+                    }
+                    
+                    .control-btn {
+                        background: #e2e8f0;
+                        border: none;
+                        width: 22px;
+                        height: 22px;
+                        border-radius: 3px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 12px;
+                        transition: all 0.2s ease;
+                    }
+                    
+                    .control-btn:hover {
+                        background: #cbd5e1;
+                    }
+                    
+                    .editable-content {
+                        padding: 15px;
+                        outline: none;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            window.MediaKitBuilder.performance.stages.stylesEnsured = Date.now();
+            console.log('CSS styles verified');
+        } catch (error) {
+            window.MediaKitBuilder.logError(error, 'ensureStyles');
+        }
+    };
+    
+    // Critical fix: force initialization of builder
+    window.MediaKitBuilder.forceInit = function() {
+        try {
+            console.log('Attempting forced initialization...');
+            
+            // Check if builder instance exists
+            if (window.MediaKitBuilder.global.instance) {
+                console.log('Builder instance exists, calling init()');
+                if (typeof window.MediaKitBuilder.global.instance.init === 'function') {
+                    window.MediaKitBuilder.global.instance.init();
+                    window.MediaKitBuilder.performance.stages.forcedInit = Date.now();
+                } else {
+                    console.error('Builder instance exists but init() method is missing');
+                }
+            } else if (typeof window.MediaKitBuilder.Core === 'function') {
+                // Create instance
+                console.log('Creating new builder instance using Core constructor');
+                const instance = new window.MediaKitBuilder.Core({
+                    debugging: true,
+                    autoInitialize: true
+                });
+                window.MediaKitBuilder.global.instance = instance;
+                window.MediaKitBuilder.performance.stages.instanceCreated = Date.now();
+                
+                if (typeof instance.init === 'function') {
+                    instance.init();
+                    window.MediaKitBuilder.performance.stages.forcedInit = Date.now();
+                }
+            } else {
+                console.error('Cannot force initialization: Core constructor not found');
+            }
+        } catch (error) {
+            window.MediaKitBuilder.logError(error, 'forceInit');
+        }
+    };
+    
+    // Initialize critical fix after DOM is ready
+    function initCriticalFix() {
+        try {
+            // Ensure elements exist
+            window.MediaKitBuilder.ensureElements();
+            
+            // Ensure styles are applied
+            window.MediaKitBuilder.ensureStyles();
+            
+            // Wait for scripts to load, then force init if needed
+            setTimeout(function() {
+                if (!window.MediaKitBuilder.performance.stages.coreInitialized) {
+                    console.log('Builder not initialized after timeout, forcing initialization');
+                    window.MediaKitBuilder.forceInit();
+                }
+            }, 2000);
+            
+            window.MediaKitBuilder.performance.stages.criticalFixInitialized = Date.now();
+        } catch (error) {
+            window.MediaKitBuilder.logError(error, 'initCriticalFix');
+        }
+    }
+    
+    // Run immediately if DOM is ready, otherwise wait
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCriticalFix);
+    } else {
+        initCriticalFix();
+    }
+    
+    console.log('🛠️ Media Kit Builder Critical Fix - Loaded');
+})();

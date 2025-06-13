@@ -1,0 +1,120 @@
+/**
+ * Media Kit Builder - CSS Reset
+ * Ensures consistent baseline styling across browsers
+ */
+
+/* Box sizing reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+}
+
+/* Reset margins and paddings */
+body, h1, h2, h3, h4, h5, h6, p, ol, ul, figure, blockquote, dl, dd {
+  margin: 0;
+  padding: 0;
+}
+
+/* Set core body defaults */
+body {
+  min-height: 100vh;
+  scroll-behavior: smooth;
+  text-rendering: optimizeSpeed;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Remove list styles */
+ol[class], ul[class] {
+  list-style: none;
+}
+
+/* Make images easier to work with */
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* Inherit fonts for inputs and buttons */
+input, button, textarea, select {
+  font: inherit;
+}
+
+/* Remove all animations and transitions for people that prefer not to see them */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Media Kit Builder specific reset */
+#media-kit-builder {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #ffffff;
+}
+
+#media-kit-builder button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+#media-kit-builder input,
+#media-kit-builder textarea,
+#media-kit-builder select {
+  background: none;
+  border: none;
+  outline: none;
+}
+
+/* Fix WordPress admin styles bleeding into builder */
+#media-kit-builder div,
+#media-kit-builder section,
+#media-kit-builder article,
+#media-kit-builder aside,
+#media-kit-builder header,
+#media-kit-builder footer,
+#media-kit-builder nav {
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  float: none;
+  display: block;
+}
+
+/* Fix for iOS input styling */
+@supports (-webkit-touch-callout: none) {
+  #media-kit-builder input,
+  #media-kit-builder textarea {
+    font-size: 16px; /* Prevent iOS zoom */
+  }
+}
+
+/* Fix for Firefox flexbox issues */
+@-moz-document url-prefix() {
+  #media-kit-builder .section-content {
+    width: 100%;
+  }
+}
+
+/* Fix for Edge and IE flexbox issues */
+@supports (-ms-ime-align:auto) {
+  #media-kit-builder .section-content {
+    display: -ms-flexbox;
+  }
+  
+  #media-kit-builder .section-column {
+    -ms-flex: 1;
+  }
+}

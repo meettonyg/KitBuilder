@@ -33,12 +33,57 @@
                         'preview:', !!elements.preview,
                         'palette:', !!elements.palette);
 
-                // If the main container doesn't exist, create it.
+                // If the main container doesn't exist, create it
                 if (!elements.container) {
                     console.log('Creating media-kit-builder container');
                     const container = document.createElement('div');
                     container.id = 'media-kit-builder';
                     container.className = 'media-kit-builder';
+                    
+                    // Create structure
+                    container.innerHTML = `
+                        <div class="builder-toolbar">
+                            <div class="builder-actions">
+                                <button id="save-button" class="button button-primary">Save</button>
+                                <button id="preview-button" class="button">Preview</button>
+                                <button id="export-button" class="button">Export</button>
+                                <span id="save-status" class="save-status"></span>
+                            </div>
+                            <div class="builder-history">
+                                <button id="undo-button" class="button" disabled>Undo</button>
+                                <button id="redo-button" class="button" disabled>Redo</button>
+                            </div>
+                        </div>
+                        <div class="builder-main">
+                            <div class="builder-sidebar">
+                                <div class="sidebar-tabs">
+                                    <button class="sidebar-tab active" data-tab="components">Components</button>
+                                    <button class="sidebar-tab" data-tab="layout">Layout</button>
+                                    <button class="sidebar-tab" data-tab="design">Design</button>
+                                    <button class="sidebar-tab" data-tab="settings">Settings</button>
+                                </div>
+                                <div class="sidebar-content">
+                                    <div id="components-tab" class="tab-content active">
+                                        <!-- Component palette will be added here -->
+                                    </div>
+                                    <div id="layout-tab" class="tab-content">
+                                        <!-- Layout options -->
+                                    </div>
+                                    <div id="design-tab" class="tab-content">
+                                        <!-- Design options -->
+                                    </div>
+                                    <div id="settings-tab" class="tab-content">
+                                        <!-- Settings options -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="builder-content">
+                                <div id="media-kit-preview" class="media-kit-preview">
+                                    <!-- Media kit content will be added here -->
+                                </div>
+                            </div>
+                        </div>
+                    `;
 
                     // Find a suitable place to append it
                     const content = document.querySelector('.content-area, .entry-content, main, #content');
@@ -50,24 +95,42 @@
                     elements.container = container;
                 }
 
-                // If the preview container doesn't exist within the main container, create it.
+                // If the preview container doesn't exist within the main container, find or create it
                 if (!elements.preview && elements.container) {
-                    console.log('Creating media-kit-preview container');
-                    const preview = document.createElement('div');
-                    preview.id = 'media-kit-preview';
-                    preview.className = 'media-kit-preview';
-                    elements.container.appendChild(preview);
-                    elements.preview = preview;
+                    console.log('Finding or creating media-kit-preview container');
+                    elements.preview = elements.container.querySelector('#media-kit-preview');
+                    
+                    if (!elements.preview) {
+                        const builderContent = elements.container.querySelector('.builder-content');
+                        if (builderContent) {
+                            const preview = document.createElement('div');
+                            preview.id = 'media-kit-preview';
+                            preview.className = 'media-kit-preview';
+                            builderContent.appendChild(preview);
+                            elements.preview = preview;
+                        } else {
+                            console.warn('Could not find .builder-content to add preview');
+                        }
+                    }
                 }
 
-                // If the component palette doesn't exist within the main container, create it.
+                // If the component palette doesn't exist, find or create it
                 if (!elements.palette && elements.container) {
-                    console.log('Creating component-palette container');
-                    const palette = document.createElement('div');
-                    palette.id = 'component-palette';
-                    palette.className = 'component-palette';
-                    elements.container.appendChild(palette);
-                    elements.palette = palette;
+                    console.log('Finding or creating component-palette container');
+                    elements.palette = document.querySelector('#component-palette');
+                    
+                    if (!elements.palette) {
+                        const componentsTab = document.querySelector('#components-tab');
+                        if (componentsTab) {
+                            const palette = document.createElement('div');
+                            palette.id = 'component-palette';
+                            palette.className = 'component-palette';
+                            componentsTab.appendChild(palette);
+                            elements.palette = palette;
+                        } else {
+                            console.warn('Could not find #components-tab to add palette');
+                        }
+                    }
                 }
 
                 // Store elements globally for reference by other scripts
@@ -161,10 +224,20 @@
          */
         if (document.readyState === 'loading') {
             // The DOM is not yet ready, wait for the DOMContentLoaded event.
-            document.addEventListener('DOMContentLoaded', window.MediaKitBuilder.checkElements);
+            document.addEventListener('DOMContentLoaded', function() {
+                window.MediaKitBuilder.checkElements();
+                // Trigger safeInit after checking elements
+                if (window.MediaKitBuilder.safeInit) {
+                    window.MediaKitBuilder.safeInit();
+                }
+            });
         } else {
             // The DOM has already loaded, execute the function immediately.
             window.MediaKitBuilder.checkElements();
+            // Trigger safeInit after checking elements
+            if (window.MediaKitBuilder.safeInit) {
+                window.MediaKitBuilder.safeInit();
+            }
         }
 
         console.log('Media Kit Builder global namespace initialized');

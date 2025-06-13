@@ -104,6 +104,113 @@ class Media_Kit_Builder {
     }
     
     /**
+     * Get critical CSS for immediate styling
+     * @return string Critical CSS
+     */
+    private function get_critical_css() {
+        return <<<CSS
+            #media-kit-builder {
+                background: #1a1a1a;
+                color: #ffffff;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                min-height: 500px;
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .builder-toolbar {
+                background: #2a2a2a;
+                padding: 10px;
+                display: flex;
+                justify-content: space-between;
+                border-bottom: 1px solid #404040;
+            }
+            
+            .builder-main {
+                display: flex;
+                flex: 1;
+                overflow: hidden;
+            }
+            
+            .builder-sidebar {
+                width: 300px;
+                background: #2a2a2a;
+                border-right: 1px solid #404040;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .sidebar-tabs {
+                display: flex;
+                border-bottom: 1px solid #404040;
+            }
+            
+            .sidebar-tab {
+                flex: 1;
+                padding: 10px;
+                text-align: center;
+                color: #94a3b8;
+                background: none;
+                border: none;
+                cursor: pointer;
+            }
+            
+            .sidebar-tab.active {
+                color: #0ea5e9;
+                border-bottom: 2px solid #0ea5e9;
+            }
+            
+            .sidebar-content {
+                padding: 15px;
+                overflow-y: auto;
+                flex: 1;
+            }
+            
+            .tab-content {
+                display: none;
+            }
+            
+            .tab-content.active {
+                display: block;
+            }
+            
+            .builder-content {
+                flex: 1;
+                overflow: auto;
+                background: #1a1a1a;
+                padding: 20px;
+            }
+            
+            .media-kit-preview {
+                background: #ffffff;
+                color: #1a1a1a;
+                margin: 0 auto;
+                max-width: 800px;
+                min-height: 80vh;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            }
+            
+            .drop-zone {
+                min-height: 100px;
+                border: 2px dashed transparent;
+                padding: 10px;
+                transition: all 0.2s ease;
+            }
+            
+            .drop-zone.empty {
+                border-color: #e2e8f0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 30px;
+            }
+        CSS;
+    }
+    
+    /**
      * Activation hook
      */
     public function activate() {
@@ -117,9 +224,6 @@ class Media_Kit_Builder {
         flush_rewrite_rules();
     }
     
-    /**
-     * Deactivation hook
-     */
     public function deactivate() {
         // Cleanup tasks
         
@@ -185,16 +289,13 @@ class Media_Kit_Builder {
             return;
         }
         
-        // Enqueue jQuery UI
+        // STEP 1: Core script dependencies that must load in header
         wp_enqueue_script('jquery-ui-core');
         wp_enqueue_script('jquery-ui-sortable');
         wp_enqueue_script('jquery-ui-draggable');
         wp_enqueue_script('jquery-ui-droppable');
         
-        // Enqueue WordPress media uploader
-        wp_enqueue_media();
-        
-        // Load polyfill.io for automatic browser polyfills
+        // STEP 2: Polyfills before anything else
         wp_enqueue_script(
             'polyfill-io',
             'https://polyfill.io/v3/polyfill.min.js?features=default,Array.prototype.find,Promise,Element.prototype.closest',
@@ -203,52 +304,55 @@ class Media_Kit_Builder {
             false // Load in header
         );
         
-        // Load cross-browser compatibility script before anything else
+        // STEP 3: Initialize global namespace
         wp_enqueue_script(
-            'media-kit-builder-compatibility',
-            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/compatibility.js',
+            'media-kit-builder-initializer',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/standalone-initializer.js',
             array('jquery'),
             MEDIA_KIT_BUILDER_VERSION,
             false // Load in header
         );
         
-        // CRITICAL: First load the standalone initializer to set up the global namespace
+        // STEP 4: Load compatibility script
         wp_enqueue_script(
-            'media-kit-builder-initializer',
-            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/standalone-initializer.js',
-            array('jquery', 'media-kit-builder-compatibility'),
-            MEDIA_KIT_BUILDER_VERSION,
-            false // Load in header, not footer
-        );
-        
-        // STEP 2: Load the regular initializer
-        wp_enqueue_script(
-            'media-kit-builder-initializer-full',
-            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/initializer.js',
+            'media-kit-builder-compatibility',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/compatibility.js',
             array('jquery', 'media-kit-builder-initializer'),
             MEDIA_KIT_BUILDER_VERSION,
             false // Load in header
         );
         
-        // STEP 3: Enqueue main builder script
+        // STEP 5: Load main initializer
+        wp_enqueue_script(
+            'media-kit-builder-initializer-full',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/initializer.js',
+            array('jquery', 'media-kit-builder-initializer', 'media-kit-builder-compatibility'),
+            MEDIA_KIT_BUILDER_VERSION,
+            false // Load in header
+        );
+        
+        // STEP 6: Enqueue main builder script
         wp_enqueue_script(
             'media-kit-builder',
             MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder.js',
-            array('jquery', 'media-kit-builder-initializer', 'media-kit-builder-initializer-full'),
+            array('jquery', 'jquery-ui-sortable', 'media-kit-builder-initializer', 'media-kit-builder-initializer-full'),
             MEDIA_KIT_BUILDER_VERSION,
             true
         );
         
-        // STEP 4: Enqueue WordPress adapter
+        // STEP 7: Enqueue WordPress adapter
         wp_enqueue_script(
             'media-kit-builder-wordpress',
             MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder-wordpress.js',
-            array('jquery', 'media-kit-builder'),
+            array('jquery', 'media-kit-builder', 'media-kit-builder-initializer-full', 'media-kit-builder-compatibility'),
             MEDIA_KIT_BUILDER_VERSION,
             true
         );
         
-        // Enqueue additional scripts
+        // Enqueue WordPress media uploader after main scripts
+        wp_enqueue_media();
+        
+        // STEP 8: Enqueue functional modules
         wp_enqueue_script(
             'media-kit-builder-premium',
             MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/premium-access-control.js',
@@ -284,33 +388,47 @@ class Media_Kit_Builder {
             );
         }
         
-        // CRITICAL: First ensure template manager is loaded
+        // STEP 9: Load template manager and builder exports
         wp_enqueue_script(
             'media-kit-builder-template-manager',
             MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/template-manager.js',
-            array('jquery', 'media-kit-builder-wordpress'),
+            array('jquery', 'media-kit-builder-wordpress', 'media-kit-builder-templates'),
             MEDIA_KIT_BUILDER_VERSION,
             true
         );
         
-        // CRITICAL: Load builder exports to ensure all classes are properly exposed globally
         wp_enqueue_script(
             'media-kit-builder-exports',
             MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder-exports.js',
-            array('jquery', 'media-kit-builder-wordpress', 'media-kit-builder-premium', 'media-kit-builder-templates', 'media-kit-builder-template-manager'),
+            array('jquery', 'media-kit-builder-wordpress', 'media-kit-builder-template-manager'),
             MEDIA_KIT_BUILDER_VERSION,
             true
         );
         
-        // Enqueue core builder styles
+        // STEP 9.5: Enqueue section management
+        wp_enqueue_script(
+            'media-kit-builder-section-management',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/section-management.js',
+            array('jquery', 'media-kit-builder-wordpress', 'media-kit-builder-templates'),
+            MEDIA_KIT_BUILDER_VERSION,
+            true
+        );
+        
+        // STEP 10: Enqueue core CSS in proper order
         wp_enqueue_style(
-            'media-kit-builder',
-            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/css/builder.css',
+            'media-kit-builder-reset',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/css/reset.css',
             array(),
             MEDIA_KIT_BUILDER_VERSION
         );
         
-        // Enqueue component styles
+        wp_enqueue_style(
+            'media-kit-builder',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/css/builder.css',
+            array('media-kit-builder-reset'),
+            MEDIA_KIT_BUILDER_VERSION
+        );
+        
         wp_enqueue_style(
             'media-kit-builder-components',
             MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/css/components.css',
@@ -318,15 +436,17 @@ class Media_Kit_Builder {
             MEDIA_KIT_BUILDER_VERSION
         );
         
-        // Enqueue WordPress admin compatibility styles
         wp_enqueue_style(
             'media-kit-builder-wp-admin',
             MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/css/wp-admin-compat.css',
             array('media-kit-builder', 'media-kit-builder-components'),
             MEDIA_KIT_BUILDER_VERSION
         );
+        
+        // Add critical inline styles to ensure minimum styling is applied immediately
+        wp_add_inline_style('media-kit-builder-reset', $this->get_critical_css());
 		
-// Temporarily load the performance validation script if the URL parameter is present
+// Load test scripts for performance testing when requested
 if (isset($_GET['test']) && $_GET['test'] === 'performance') {
     wp_enqueue_script(
         'media-kit-builder-performance-validation',
@@ -368,65 +488,66 @@ if (isset($_GET['test']) && $_GET['test'] === 'performance') {
         // Only enqueue on pages with the shortcode
         global $post;
         if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'media_kit_builder')) {
-            // Enqueue jQuery UI
+            // Enqueue jQuery UI - ensure jQuery is loaded first
+            wp_enqueue_script('jquery');
             wp_enqueue_script('jquery-ui-core');
             wp_enqueue_script('jquery-ui-sortable');
             wp_enqueue_script('jquery-ui-draggable');
             wp_enqueue_script('jquery-ui-droppable');
             
             // Enqueue WordPress media uploader
-            wp_enqueue_media();
+        wp_enqueue_media();
             
             // Load polyfill.io for automatic browser polyfills
             wp_enqueue_script(
-                'polyfill-io',
-                'https://polyfill.io/v3/polyfill.min.js?features=default,Array.prototype.find,Promise,Element.prototype.closest',
-                array(),
-                null,
-                false // Load in header
+            'polyfill-io',
+            'https://polyfill.io/v3/polyfill.min.js?features=default,Array.prototype.find,Promise,Element.prototype.closest',
+            array(),
+            null,
+            false // Load in header
             );
             
-            // Load cross-browser compatibility script before anything else
+            // STEP 1: First load the standalone initializer to set up the global namespace
+            wp_enqueue_script(
+            'media-kit-builder-initializer',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/standalone-initializer.js',
+            array('jquery'),
+            MEDIA_KIT_BUILDER_VERSION,
+            false // Load in header, not footer
+            );
+            
+            // STEP 2: Load compatibility script
             wp_enqueue_script(
                 'media-kit-builder-compatibility',
                 MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/compatibility.js',
-                array('jquery'),
-                MEDIA_KIT_BUILDER_VERSION,
-                false // Load in header
-            );
-            
-            // CRITICAL: First load the standalone initializer to set up the global namespace
-            wp_enqueue_script(
-                'media-kit-builder-initializer',
-                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/standalone-initializer.js',
-                array('jquery', 'media-kit-builder-compatibility'),
-                MEDIA_KIT_BUILDER_VERSION,
-                false // Load in header, not footer
-            );
-            
-            // STEP 2: Load the regular initializer
-            wp_enqueue_script(
-                'media-kit-builder-initializer-full',
-                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/initializer.js',
                 array('jquery', 'media-kit-builder-initializer'),
                 MEDIA_KIT_BUILDER_VERSION,
                 false // Load in header
             );
             
-            // STEP 3: Enqueue main builder script
+            // STEP 3: Load the regular initializer
+            wp_enqueue_script(
+                'media-kit-builder-initializer-full',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/initializer.js',
+                array('jquery', 'media-kit-builder-initializer', 'media-kit-builder-compatibility'),
+                MEDIA_KIT_BUILDER_VERSION,
+                false // Load in header
+            );
+            
+            // STEP 4: Enqueue main builder script
             wp_enqueue_script(
                 'media-kit-builder',
                 MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder.js',
-                array('jquery', 'media-kit-builder-initializer', 'media-kit-builder-initializer-full'),
+                array('jquery', 'media-kit-builder-initializer', 'media-kit-builder-initializer-full', 'media-kit-builder-compatibility'),
                 MEDIA_KIT_BUILDER_VERSION,
                 true
             );
             
-            // STEP 4: Enqueue WordPress adapter
+            // STEP 5: Enqueue WordPress adapter
             wp_enqueue_script(
                 'media-kit-builder-wordpress',
                 MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder-wordpress.js',
-                array('jquery', 'media-kit-builder'),
+                array('jquery', 'media-kit-builder', 'media-kit-builder-compatibility'),
                 MEDIA_KIT_BUILDER_VERSION,
                 true
             );
@@ -470,6 +591,15 @@ if (isset($_GET['test']) && $_GET['test'] === 'performance') {
                 'media-kit-builder-exports-frontend',
                 MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder-exports.js',
                 array('jquery', 'media-kit-builder-wordpress', 'media-kit-builder-premium', 'media-kit-builder-templates', 'media-kit-builder-template-manager-frontend'),
+                MEDIA_KIT_BUILDER_VERSION,
+                true
+            );
+            
+            // CRITICAL: Load section management
+            wp_enqueue_script(
+                'media-kit-builder-section-management-frontend',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/section-management.js',
+                array('jquery', 'media-kit-builder-wordpress', 'media-kit-builder-templates'),
                 MEDIA_KIT_BUILDER_VERSION,
                 true
             );
@@ -664,9 +794,8 @@ if (isset($_GET['test']) && $_GET['test'] === 'performance') {
             return;
         }
         
-        // Output the compatibility and initializer scripts directly in the head for other pages
+        // Output the standalone initializer directly in the head for other pages
         echo '<script src="https://polyfill.io/v3/polyfill.min.js?features=default,Array.prototype.find,Promise,Element.prototype.closest"></script>';
-        echo '<script src="' . MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/compatibility.js?ver=' . MEDIA_KIT_BUILDER_VERSION . '"></script>';
         echo '<script src="' . MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/standalone-initializer.js?ver=' . MEDIA_KIT_BUILDER_VERSION . '"></script>';
     }
     
