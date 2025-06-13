@@ -74,6 +74,8 @@
                 this.setupTabs();
                 this.setupComponentPalette();
                 this.setupDragAndDrop();
+                this.setupSectionReordering();
+                this.setupAddSectionButton();
                 this.setupUndoRedo();
                 this.setupEventListeners();
                 this.setupAutoSave();
@@ -250,6 +252,140 @@
                 this.handleError(error, 'drag and drop setup');
             }
         }
+
+        /**
+         * Setup section reordering functionality
+         */
+        setupSectionReordering() {
+            const preview = this.elements.preview;
+            if (!preview) return;
+
+            preview.addEventListener('dragstart', (e) => {
+                if (e.target.classList.contains('media-kit-section')) {
+                    e.target.classList.add('is-dragging');
+                }
+            });
+
+            preview.addEventListener('dragend', (e) => {
+                if (e.target.classList.contains('media-kit-section')) {
+                    e.target.classList.remove('is-dragging');
+                }
+            });
+
+            preview.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const draggingElement = preview.querySelector('.is-dragging');
+                if (!draggingElement) return;
+
+                const afterElement = this.getDragAfterElement(preview, e.clientY);
+                if (afterElement == null) {
+                    preview.appendChild(draggingElement);
+                } else {
+                    preview.insertBefore(draggingElement, afterElement);
+                }
+                this.markDirty();
+            });
+            
+            // Setup section control buttons
+            preview.addEventListener('click', (e) => {
+                // Delete section button
+                if (e.target.closest('.section-control-btn.delete-btn')) {
+                    const section = e.target.closest('.media-kit-section');
+                    if (section && confirm('Are you sure you want to delete this section?')) {
+                        section.remove();
+                        this.saveStateToHistory();
+                        this.markDirty();
+                    }
+                }
+                
+                // Move section button (toggle draggable state)
+                if (e.target.closest('.section-control-btn.move-btn')) {
+                    const section = e.target.closest('.media-kit-section');
+                    if (section) {
+                        // Flash the section to indicate it's ready to be dragged
+                        section.classList.add('is-draggable-active');
+                        setTimeout(() => {
+                            section.classList.remove('is-draggable-active');
+                        }, 1000);
+                    }
+                }
+            });
+        }
+        
+        getDragAfterElement(container, y) {
+            // This selector handles both components (.editable-element) and sections (.media-kit-section)
+            const draggableElements = [...container.querySelectorAll('.editable-element:not(.dragging), .media-kit-section:not(.is-dragging)')];
+            
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+        
+        setupAddSectionButton() {
+            const addSectionBtn = document.getElementById('add-section-btn');
+            if (!addSectionBtn) return;
+            
+            addSectionBtn.addEventListener('click', () => {
+                try {
+                    this.addNewSection();
+                } catch (error) {
+                    this.handleError(error, 'add section button');
+                }
+            });
+        }
+        
+        addNewSection() {
+            const preview = this.elements.preview;
+            if (!preview) return;
+            
+            const section = document.createElement('div');
+            section.className = 'media-kit-section';
+            section.setAttribute('data-section-id', 'section-' + Date.now());
+            section.setAttribute('data-section-type', 'content');
+            section.setAttribute('data-section-layout', 'full-width');
+            section.setAttribute('draggable', 'true');
+            
+            // Add section controls
+            const sectionControls = document.createElement('div');
+            sectionControls.className = 'section-controls';
+            sectionControls.innerHTML = `
+                <button class="section-control-btn move-btn" title="Move Section">↕</button>
+                <button class="section-control-btn delete-btn" title="Delete Section">✕</button>
+            `;
+            section.appendChild(sectionControls);
+            
+            const sectionContent = document.createElement('div');
+            sectionContent.className = 'section-content layout-full-width';
+            
+            const column = document.createElement('div');
+            column.className = 'section-column';
+            column.setAttribute('data-column', 'full');
+            
+            const dropZone = document.createElement('div');
+            dropZone.className = 'drop-zone empty';
+            dropZone.setAttribute('data-zone', 'zone-' + Date.now());
+            
+            column.appendChild(dropZone);
+            sectionContent.appendChild(column);
+            section.appendChild(sectionContent);
+            
+            preview.appendChild(section);
+            
+            // Setup drag and drop for the new drop zone
+            this.setupDragAndDrop();
+            
+            this.saveStateToHistory();
+            this.markDirty();
+            
+            return section;
+        }
         createInitialDropZone() {
             try {
                 if (!this.elements.preview) return;
@@ -259,6 +395,16 @@
                 section.setAttribute('data-section-id', 'section-' + Date.now());
                 section.setAttribute('data-section-type', 'content');
                 section.setAttribute('data-section-layout', 'full-width');
+                section.setAttribute('draggable', 'true');
+                
+                // Add section controls
+                const sectionControls = document.createElement('div');
+                sectionControls.className = 'section-controls';
+                sectionControls.innerHTML = `
+                    <button class="section-control-btn move-btn" title="Move Section">↕</button>
+                    <button class="section-control-btn delete-btn" title="Delete Section">✕</button>
+                `;
+                section.appendChild(sectionControls);
                 const sectionContent = document.createElement('div');
                 sectionContent.className = 'section-content layout-full-width';
                 const column = document.createElement('div');

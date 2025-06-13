@@ -154,6 +154,74 @@ body.mkb-builder-body {
 .preview-container.tablet-preview { max-width: 768px; margin: 20px auto; }
 
 /* ==========================================================================
+   Section Controls & Drag Handles
+   ========================================================================== */
+.media-kit-section {
+    position: relative;
+    border: 2px dashed transparent;
+    transition: border-color 0.2s ease;
+}
+
+/* Show controls and border on hover */
+.media-kit-section:hover {
+    border-color: #0ea5e9;
+}
+
+.media-kit-section:hover .section-controls {
+    opacity: 1;
+}
+
+.section-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #2a2a2a;
+    border-radius: 6px;
+    padding: 4px;
+    display: flex;
+    gap: 4px;
+    z-index: 50;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.section-control-btn {
+    background: #404040;
+    border: none;
+    color: #fff;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.section-control-btn:hover {
+    background: #0ea5e9;
+}
+
+/* Style for when a section is being dragged */
+.media-kit-section.is-dragging {
+    opacity: 0.5;
+    border: 2px solid #0ea5e9;
+    background: #333;
+}
+
+/* Style for when a section is active for dragging */
+.media-kit-section.is-draggable-active {
+    border: 2px solid #0ea5e9;
+    animation: pulse-border 1s ease;
+}
+
+@keyframes pulse-border {
+    0% { border-color: #0ea5e9; }
+    50% { border-color: #f59e0b; }
+    100% { border-color: #0ea5e9; }
+}
+
+/* ==========================================================================
    Mobile Responsiveness
    ========================================================================== */
 @media (max-width: 768px) {
