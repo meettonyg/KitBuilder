@@ -113,7 +113,7 @@ class Media_Kit_Builder_URL_Router {
         wp_enqueue_script('jquery');
         wp_enqueue_media();
         
-        // Load our local polyfill file
+        // Local polyfill instead of external one
         wp_enqueue_script('mkb-polyfill', $assets_url . 'js/lib/polyfill.min.js', [], $version, false);
         
         // Load the single, reliable initializer in the header
@@ -127,7 +127,7 @@ class Media_Kit_Builder_URL_Router {
         wp_enqueue_script('mkb-premium-access', $assets_url . 'js/premium-access-control.js', ['mkb-core-builder'], $version, true);
         
         // The WordPress adapter should be one of the last to load
-        wp_enqueue_script('mkb-wp-adapter', $assets_url . 'js/builder-wordpress.js', ['mkb-core-builder', 'mkb-template-manager'], $version, true);
+        wp_enqueue_script('mkb-wp-adapter', $assets_url . 'js/builder-wordpress.js', ['mkb-core-builder', 'mkb-template-manager', 'mkb-premium-access'], $version, true);
         
         // Debug helper loads last
         wp_enqueue_script('mkb-debug-helper', $assets_url . 'js/debug-helper.js', ['mkb-wp-adapter'], $version, true);

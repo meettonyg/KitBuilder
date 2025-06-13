@@ -167,51 +167,51 @@
                     this.builder.handleError(error, 'core-initialization');
                 }
             }
-                
-                // Check if elements are ready (from initializer)
-                if (!window.MediaKitBuilder.elementsReady) {
-                    console.log('DOM elements not ready yet, triggering initializer');
-                    if (typeof window.MediaKitBuilder.safeInit === 'function') {
-                        window.MediaKitBuilder.safeInit();
-                    }
+            
+            // Check if elements are ready (from initializer)
+            if (!window.MediaKitBuilder.elementsReady) {
+                console.log('DOM elements not ready yet, triggering initializer');
+                if (typeof window.MediaKitBuilder.safeInit === 'function') {
+                    window.MediaKitBuilder.safeInit();
                 }
-                
-                // Create MediaKitBuilder instance
-                this.builder = new window.MediaKitBuilder.Core({
-                    container: '#media-kit-builder',
-                    previewContainer: '#media-kit-preview',
-                    componentPalette: '#component-palette',
-                    wpData: this.config
-                });
-                
-                // Set global reference for compatibility
-                window.mediaKitBuilder = this.builder;
-                
-                console.log('MediaKitBuilder instance created successfully');
-                
-                // Initialize managers
-                this.initializeManagers();
-                
-                // Set up WordPress-specific functionality
-                this.setupEventListeners();
-                this.setupAutoSave();
-                this.setupAdminUI();
-                this.setupMediaUploader();
-                
-                // Load media kit from URL if entry_key exists
-                this.loadFromURL();
-                
-                // Set up error handling
-                this.setupErrorHandling();
-                
-                this.isInitialized = true;
-                this.log('WordPress Adapter initialized successfully');
-                
-                // If initialization is needed, do it now
-                if (window.MediaKitBuilder.shouldInitialize) {
-                    console.log('Initializing builder from adapter');
-                    this.builder.init();
-                }
+            }
+            
+            // Create MediaKitBuilder instance
+            this.builder = new window.MediaKitBuilder.Core({
+                container: '#media-kit-builder',
+                previewContainer: '#media-kit-preview',
+                componentPalette: '#component-palette',
+                wpData: this.config
+            });
+            
+            // Set global reference for compatibility
+            window.mediaKitBuilder = this.builder;
+            
+            console.log('MediaKitBuilder instance created successfully');
+            
+            // Initialize managers
+            this.initializeManagers();
+            
+            // Set up WordPress-specific functionality
+            this.setupEventListeners();
+            this.setupAutoSave();
+            this.setupAdminUI();
+            this.setupMediaUploader();
+            
+            // Load media kit from URL if entry_key exists
+            this.loadFromURL();
+            
+            // Set up error handling
+            this.setupErrorHandling();
+            
+            this.isInitialized = true;
+            this.log('WordPress Adapter initialized successfully');
+            
+            // If initialization is needed, do it now
+            if (window.MediaKitBuilder.shouldInitialize) {
+                console.log('Initializing builder from adapter');
+                this.builder.init();
+            }
             } catch (error) {
                 console.error('Error initializing WordPress adapter:', error);
             }

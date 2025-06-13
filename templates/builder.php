@@ -49,7 +49,7 @@ $nonce = wp_create_nonce('media_kit_builder_nonce');
     <link rel='stylesheet' id='mkb-components-styles-css' href='<?php echo MKB_PLUGIN_URL; ?>assets/css/components.css?ver=<?php echo MKB_VERSION; ?>' media='all' />
     
     <!-- Polyfills -->
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+    <script src="<?php echo MKB_PLUGIN_URL; ?>assets/js/lib/polyfill.min.js"></script>
     
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
