@@ -549,9 +549,11 @@ class Media_Kit_Builder {
      */
     public function load_initializer_in_head() {
         // Don't output on admin pages where we're already loading the builder
-        $screen = get_current_screen();
-        if (is_admin() && $screen && $screen->id === 'toplevel_page_media-kit-builder') {
-            return;
+        if (is_admin() && function_exists('get_current_screen')) {
+            $screen = get_current_screen();
+            if ($screen && $screen->id === 'toplevel_page_media-kit-builder') {
+                return;
+            }
         }
         
         // Don't output on pages with the media kit shortcode
