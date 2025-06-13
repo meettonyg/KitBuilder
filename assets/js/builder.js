@@ -424,5 +424,6 @@
         saveMediaKit(data) { /* ... same as before ... */ }
         loadMediaKit(entryKey) { /* ... same as before ... */ }
     }
-    window.MediaKitBuilder = MediaKitBuilder;
+    // Store the MediaKitBuilder class in the Core property of the global object
+	window.MediaKitBuilder.Core = MediaKitBuilder;
 })(jQuery);
