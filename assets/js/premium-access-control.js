@@ -7,6 +7,10 @@
  * 
  * @since 1.0.0
  */
+
+// Check if PremiumAccessManager already exists to prevent redeclaration
+if (typeof PremiumAccessManager === 'undefined') {
+
 class PremiumAccessManager {
     /**
      * Initialize the Premium Access Manager
@@ -1143,27 +1147,31 @@ class PremiumAccessManager {
     }
 }
 
-// Initialize when DOM is ready
+// Only initialize if not already initialized
 document.addEventListener('DOMContentLoaded', function() {
     // Wait for MediaKitBuilder config to be loaded
     setTimeout(() => {
-        // Create global instance
-        window.premiumAccessManager = new PremiumAccessManager({
+        // Only create a global instance if one doesn't exist
+        if (!window.premiumAccessManager) {
+            window.premiumAccessManager = new PremiumAccessManager({
             accessTier: window.MediaKitBuilder?.config?.accessTier || 'guest',
             isAdmin: window.MediaKitBuilder?.config?.isAdmin || false,
             upgradeUrl: window.MediaKitBuilder?.config?.upgradeUrl || '/pricing/',
             learnMoreUrl: window.MediaKitBuilder?.config?.learnMoreUrl || '/features/'
         });
         
-        // Make important methods available globally for backward compatibility
-        window.hasAccess = (feature) => window.premiumAccessManager.hasAccess(feature);
-        window.canAddMore = (itemType) => window.premiumAccessManager.canAddMore(itemType);
-        window.showUpgradePrompt = (feature, template) => window.premiumAccessManager.showUpgradePrompt(feature, template);
-        window.closeUpgradePrompt = () => window.premiumAccessManager.closeUpgradePrompt();
-        
-        // Notify the builder that premium access is ready
-        document.dispatchEvent(new CustomEvent('premium-access-ready'));
-        
-        console.log('🔐 Premium Access Manager initialized successfully');
+            // Make important methods available globally for backward compatibility
+            window.hasAccess = (feature) => window.premiumAccessManager.hasAccess(feature);
+            window.canAddMore = (itemType) => window.premiumAccessManager.canAddMore(itemType);
+            window.showUpgradePrompt = (feature, template) => window.premiumAccessManager.showUpgradePrompt(feature, template);
+            window.closeUpgradePrompt = () => window.premiumAccessManager.closeUpgradePrompt();
+            
+            // Notify the builder that premium access is ready
+            document.dispatchEvent(new CustomEvent('premium-access-ready'));
+            
+            console.log('🔐 Premium Access Manager initialized successfully');
+        }
     }, 100);
 });
+
+} // Close the conditional declaration check

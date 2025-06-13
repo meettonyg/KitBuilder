@@ -113,6 +113,9 @@ class Media_Kit_Builder_URL_Router {
         wp_enqueue_script('jquery');
         wp_enqueue_media();
         
+        // Load our local polyfill file
+        wp_enqueue_script('mkb-polyfill', $assets_url . 'js/lib/polyfill.min.js', [], $version, false);
+        
         // Load the single, reliable initializer in the header
         wp_enqueue_script('mkb-standalone-initializer', $assets_url . 'js/standalone-initializer.js', ['jquery'], $version, false);
         

@@ -4,7 +4,10 @@
  * Responsible for fetching, caching, and managing templates.
  */
 
-class TemplateManager {
+// Check if SectionTemplateManager already exists to prevent redeclaration
+if (typeof SectionTemplateManager === 'undefined') {
+
+class SectionTemplateManager {
     /**
      * Constructor.
      * 
@@ -355,25 +358,27 @@ class TemplateManager {
      * Initialize the Template Manager with WordPress data.
      * 
      * @param {Object} wpData WordPress data object.
-     * @returns {TemplateManager} Template Manager instance.
+     * @returns {SectionTemplateManager} Template Manager instance.
      */
     static init(wpData) {
-        return new TemplateManager({
+        return new SectionTemplateManager({
             restUrl: wpData.restUrl,
             restNonce: wpData.restNonce
         });
     }
 }
 
-// Make the TemplateManager globally available
-window.TemplateManager = TemplateManager;
+// Make the SectionTemplateManager globally available
+window.SectionTemplateManager = SectionTemplateManager;
 
 // Initialize if wpData is available
 document.addEventListener('DOMContentLoaded', () => {
     if (window.mkbData) {
-        window.templateManager = TemplateManager.init(window.mkbData);
+        window.templateManager = SectionTemplateManager.init(window.mkbData);
     }
 });
 
 // Export for global access for architectural validation
-window.TemplateManager = TemplateManager;
+window.SectionTemplateManager = SectionTemplateManager;
+
+} // Close the conditional declaration check

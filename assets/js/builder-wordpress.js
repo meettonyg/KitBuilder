@@ -1646,18 +1646,18 @@
     // Ensure all required methods are available for architectural validation
 if (!window.wpAdapter) {
     window.wpAdapter = {
-    reportError: function(error) {
-    console.log('Error reported:', error);
-    return Promise.resolve({ success: true });
-    },
-    saveMediaKit: function(data) {
-    console.log('Save media kit called:', data);
-    return Promise.resolve({ success: true, entry_key: 'test-key' });
-    },
-    loadMediaKit: function(entryKey) {
-    console.log('Load media kit called:', entryKey);
-    return Promise.resolve({ success: true, data: {} });
-    },
+        reportError: function(error) {
+            console.log('Error reported:', error);
+            return Promise.resolve({ success: true });
+        },
+        saveMediaKit: function(data) {
+            console.log('Save media kit called:', data);
+            return Promise.resolve({ success: true, entry_key: 'test-key' });
+        },
+        loadMediaKit: function(entryKey) {
+            console.log('Load media kit called:', entryKey);
+            return Promise.resolve({ success: true, data: {} });
+        },
         handleError: function(error) {
             console.error('Error handled:', error);
         },

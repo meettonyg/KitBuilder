@@ -27,13 +27,18 @@
         
         console.log('🚀 Firing all Media Kit Builder initializers...');
         
+        if (Array.isArray(window.MediaKitBuilder.initQueue)) {
         window.MediaKitBuilder.initQueue.forEach(fn => {
-            try {
+        try {
                 fn();
-            } catch (error) {
+        } catch (error) {
                 console.error('Error running initializer function:', error);
-            }
+                }
         });
+    } else {
+        console.warn('MediaKitBuilder.initQueue is not an array. Initializing empty queue.');
+        window.MediaKitBuilder.initQueue = [];
+    }
     }
 
     /**
