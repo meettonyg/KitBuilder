@@ -257,6 +257,24 @@ class Media_Kit_Builder {
             );
         }
         
+        // CRITICAL: First ensure template manager is loaded
+        wp_enqueue_script(
+            'media-kit-builder-template-manager',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/template-manager.js',
+            array('jquery', 'media-kit-builder-wordpress'),
+            MEDIA_KIT_BUILDER_VERSION,
+            true
+        );
+        
+        // CRITICAL: Load builder exports to ensure all classes are properly exposed globally
+        wp_enqueue_script(
+            'media-kit-builder-exports',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder-exports.js',
+            array('jquery', 'media-kit-builder-wordpress', 'media-kit-builder-premium', 'media-kit-builder-templates', 'media-kit-builder-template-manager'),
+            MEDIA_KIT_BUILDER_VERSION,
+            true
+        );
+        
         // Enqueue styles
         wp_enqueue_style(
             'media-kit-builder',
@@ -353,6 +371,24 @@ class Media_Kit_Builder {
                 'media-kit-builder-export',
                 MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/export.js',
                 array('jquery', 'media-kit-builder-wordpress'),
+                MEDIA_KIT_BUILDER_VERSION,
+                true
+            );
+            
+            // CRITICAL: First ensure template manager is loaded for frontend
+            wp_enqueue_script(
+                'media-kit-builder-template-manager-frontend',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/template-manager.js',
+                array('jquery', 'media-kit-builder-wordpress'),
+                MEDIA_KIT_BUILDER_VERSION,
+                true
+            );
+            
+            // CRITICAL: Load builder exports for frontend
+            wp_enqueue_script(
+                'media-kit-builder-exports-frontend',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/js/builder-exports.js',
+                array('jquery', 'media-kit-builder-wordpress', 'media-kit-builder-premium', 'media-kit-builder-templates', 'media-kit-builder-template-manager-frontend'),
                 MEDIA_KIT_BUILDER_VERSION,
                 true
             );

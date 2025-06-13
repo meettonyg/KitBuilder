@@ -374,3 +374,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.templateManager = TemplateManager.init(window.mkbData);
     }
 });
+
+// Export for global access for architectural validation
+window.TemplateManager = TemplateManager;

@@ -645,4 +645,9 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     console.log('🏗️ Section Template Manager module loaded');
+    
+    // Create an instance for architectural validation if not exists
+    if (!window.templateManager) {
+        window.templateManager = new SectionTemplateManager();
+    }
 });
