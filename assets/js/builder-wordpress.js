@@ -161,6 +161,11 @@
                         window.MediaKitBuilder.global.instance = this;
                     };
                 }
+            } catch (error) {
+                console.error('Error initializing Media Kit Builder Core:', error);
+                if (this.builder && typeof this.builder.handleError === 'function') {
+                    this.builder.handleError(error, 'core-initialization');
+                }
             }
                 
                 // Check if elements are ready (from initializer)
