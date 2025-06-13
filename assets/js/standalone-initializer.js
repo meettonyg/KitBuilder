@@ -10,8 +10,10 @@
     // 1. Set up the global namespace immediately and safely
     window.MediaKitBuilder = window.MediaKitBuilder || {};
     
-    // 2. Create an initialization queue
-    window.MediaKitBuilder.initQueue = window.MediaKitBuilder.initQueue || [];
+    // 2. Create an initialization queue - ensure it's an array
+    if (!window.MediaKitBuilder.initQueue || !Array.isArray(window.MediaKitBuilder.initQueue)) {
+        window.MediaKitBuilder.initQueue = [];
+    }
     
     // 3. Flag to ensure initialization only runs once
     let hasInitialized = false;

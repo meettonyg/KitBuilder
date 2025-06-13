@@ -212,9 +212,6 @@
                 console.log('Initializing builder from adapter');
                 this.builder.init();
             }
-            } catch (error) {
-                console.error('Error initializing WordPress adapter:', error);
-            }
         }
         
         /**
@@ -620,7 +617,10 @@
                     if (!response.ok) {
                         throw new Error(`Network error: ${response.status}`);
                     }
-                    return response.json();
+                    return response.json().catch(error => {
+                        console.error('Failed to parse JSON response:', error);
+                        throw new Error('Invalid JSON response from server');
+                    });
                 })
                 .then(response => {
                     if (response.success) {
@@ -1478,19 +1478,28 @@
          */
         testConnection() {
             return new Promise((resolve, reject) => {
+                // Validate config first
+                if (!this.config.ajaxUrl) {
+                    console.error('AJAX URL is not defined. Check mkbData configuration.');
+                    return reject(new Error('AJAX URL is not defined'));
+                }
+                
                 // Prepare form data
                 const formData = new FormData();
                 formData.append('action', 'mkb_test_ajax');
-                formData.append('nonce', this.config.nonce);
+                formData.append('nonce', this.config.nonce || '');
                 formData.append('test_data', 'Testing connection');
                 
-                this.log('Testing connection...');
+                this.log('Testing connection to: ' + this.config.ajaxUrl);
                 
                 // Send AJAX request
                 fetch(this.config.ajaxUrl, {
                     method: 'POST',
                     credentials: 'same-origin',
-                    body: formData
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
                 })
                 .then(response => {
                     if (!response.ok) {
@@ -1553,81 +1562,105 @@
         // Function to initialize adapter
         function initializeAdapter() {
             try {
-                // Create WordPress adapter
-                window.wpAdapter = new WordPressAdapter(window.mkbData);
+                // Ensure mkbData has valid AJAX URL
+                if (!window.mkbData || !window.mkbData.ajaxUrl) {
+                    console.error('Missing or invalid mkbData. Attempting to fix...');
+                    window.mkbData = window.mkbData || {};
+                    window.mkbData.ajaxUrl = window.mkbData.ajaxUrl || '/wp-admin/admin-ajax.php';
                 
-                // Store the adapter globally
-                window.MediaKitBuilder.adapter = window.wpAdapter;
-            
-            // Ensure handleError method exists globally
-            if (window.wpAdapter && !window.wpAdapter.handleError) {
-                window.wpAdapter.handleError = function(error) {
-                    console.error('WordPress Adapter Error:', error);
-                    return this.reportError(error);
-                };
-            }
-            
-            // Ensure global MediaKitBuilder instance methods
-            if (window.mediaKitBuilder) {
-                // Add missing methods for architectural validation
-                if (!window.mediaKitBuilder.handleError) {
-                    window.mediaKitBuilder.handleError = function(error, context = '') {
-                        console.error(`MediaKitBuilder Error${context ? ' (' + context + ')' : ''}:`, error);
-                        
-                        if (this.state && Array.isArray(this.state.errors)) {
-                            this.state.errors.push({
-                                message: error.message || String(error),
-                                context: context,
-                                timestamp: new Date().toISOString()
-                            });
-                        }
-                        
-                        if (this.emit) {
-                            this.emit('error', { error, context });
-                        }
-                        
-                        return false;
-                    };
-                }
-                
-                // Ensure undo/redo methods exist
-                if (!window.mediaKitBuilder.undo) {
-                    window.mediaKitBuilder.undo = function() {
-                        console.log('Undo method called (stub)');
-                    };
-                }
-                
-                if (!window.mediaKitBuilder.redo) {
-                    window.mediaKitBuilder.redo = function() {
-                        console.log('Redo method called (stub)');
-                    };
-                }
-                
-                // Ensure setLoading method exists
-                if (!window.mediaKitBuilder.setLoading) {
-                    window.mediaKitBuilder.setLoading = function(isLoading) {
-                        this.state = this.state || {};
-                        this.state.isLoading = isLoading;
-                        
-                        if (this.emit) {
-                            this.emit('loading-state-changed', { isLoading });
-                        }
-                        
-                        console.log('Loading state set to:', isLoading);
-                    };
+                // Try to get the URL from WordPress global if available
+                if (typeof ajaxurl !== 'undefined') {
+                    window.mkbData.ajaxUrl = ajaxurl;
+                    console.log('Using WordPress global ajaxurl:', ajaxurl);
                 }
             }
+            
+            // Create WordPress adapter
+            window.wpAdapter = new WordPressAdapter(window.mkbData);
+            
+            // Store the adapter globally
+            window.MediaKitBuilder.adapter = window.wpAdapter;
+                
+                // Ensure handleError method exists globally
+                if (window.wpAdapter && !window.wpAdapter.handleError) {
+                    window.wpAdapter.handleError = function(error) {
+                        console.error('WordPress Adapter Error:', error);
+                        return this.reportError(error);
+                    };
+                }
+                
+                // Ensure global MediaKitBuilder instance methods
+                if (window.mediaKitBuilder) {
+                    // Add missing methods for architectural validation
+                    if (!window.mediaKitBuilder.handleError) {
+                        window.mediaKitBuilder.handleError = function(error, context = '') {
+                            console.error(`MediaKitBuilder Error${context ? ' (' + context + ')' : ''}:`, error);
+                            
+                            if (this.state && Array.isArray(this.state.errors)) {
+                                this.state.errors.push({
+                                    message: error.message || String(error),
+                                    context: context,
+                                    timestamp: new Date().toISOString()
+                                });
+                            }
+                            
+                            if (this.emit) {
+                                this.emit('error', { error, context });
+                            }
+                            
+                            return false;
+                        };
+                    }
+                    
+                    // Ensure undo/redo methods exist
+                    if (!window.mediaKitBuilder.undo) {
+                        window.mediaKitBuilder.undo = function() {
+                            console.log('Undo method called (stub)');
+                        };
+                    }
+                    
+                    if (!window.mediaKitBuilder.redo) {
+                        window.mediaKitBuilder.redo = function() {
+                            console.log('Redo method called (stub)');
+                        };
+                    }
+                    
+                    // Ensure setLoading method exists
+                    if (!window.mediaKitBuilder.setLoading) {
+                        window.mediaKitBuilder.setLoading = function(isLoading) {
+                            this.state = this.state || {};
+                            this.state.isLoading = isLoading;
+                            
+                            if (this.emit) {
+                                this.emit('loading-state-changed', { isLoading });
+                            }
+                            
+                            console.log('Loading state set to:', isLoading);
+                        };
+                    }
+                }
                 
                 // Run connection test in debug mode
                 if (window.mkbData.debugMode) {
                     setTimeout(() => {
                         if (window.wpAdapter && typeof window.wpAdapter.testConnection === 'function') {
+                            console.log('Running connection test with config:', {
+                                ajaxUrl: window.mkbData.ajaxUrl,
+                                nonce: window.mkbData.nonce ? '[PRESENT]' : '[MISSING]',
+                                isAdmin: window.mkbData.isAdmin,
+                                accessTier: window.mkbData.accessTier
+                            });
+                            
                             window.wpAdapter.testConnection()
                                 .then(result => {
-                                    console.log('Connection test result:', result);
+                                    console.log('✅ Connection test successful:', result);
                                 })
                                 .catch(error => {
-                                    console.error('Connection test failed:', error);
+                                    console.error('❌ Connection test failed:', error);
+                                    console.error('Please check the following:');
+                                    console.error('1. Is the AJAX URL correct?', window.mkbData.ajaxUrl);
+                                    console.error('2. Is the WordPress site properly configured?');
+                                    console.error('3. Is there a server-side handler for the \"mkb_test_ajax\" action?');
                                 });
                         }
                     }, 1000);
@@ -1644,41 +1677,41 @@
     window.MediaKitBuilder.WordPressAdapter = WordPressAdapter;
     
     // Ensure all required methods are available for architectural validation
-if (!window.wpAdapter) {
-    window.wpAdapter = {
-        reportError: function(error) {
-            console.log('Error reported:', error);
-            return Promise.resolve({ success: true });
-        },
-        saveMediaKit: function(data) {
-            console.log('Save media kit called:', data);
-            return Promise.resolve({ success: true, entry_key: 'test-key' });
-        },
-        loadMediaKit: function(entryKey) {
-            console.log('Load media kit called:', entryKey);
-            return Promise.resolve({ success: true, data: {} });
-        },
-        handleError: function(error) {
-            console.error('Error handled:', error);
-        },
-        exportMediaKit: function(format) {
-            console.log(`Export media kit called with format: ${format}`);
-            return Promise.resolve({ success: true, url: '#', filename: 'media-kit.pdf' });
-        },
-        testConnection: function() {
-            console.log('Test connection called');
-            return Promise.resolve({ success: true });
-        },
-        hasCapability: function(capability) {
-            return true; // For testing
-        },
-        showNotification: function(type, message) {
-            console.log(`Notification (${type}): ${message}`);
-        },
-        showUpgradePrompt: function(feature, message) {
-            console.log(`Upgrade prompt: ${feature} - ${message}`);
-        }
-    };
-}
+    if (!window.wpAdapter) {
+        window.wpAdapter = {
+            reportError: function(error) {
+                console.log('Error reported:', error);
+                return Promise.resolve({ success: true });
+            },
+            saveMediaKit: function(data) {
+                console.log('Save media kit called:', data);
+                return Promise.resolve({ success: true, entry_key: 'test-key' });
+            },
+            loadMediaKit: function(entryKey) {
+                console.log('Load media kit called:', entryKey);
+                return Promise.resolve({ success: true, data: {} });
+            },
+            handleError: function(error) {
+                console.error('Error handled:', error);
+            },
+            exportMediaKit: function(format) {
+                console.log(`Export media kit called with format: ${format}`);
+                return Promise.resolve({ success: true, url: '#', filename: 'media-kit.pdf' });
+            },
+            testConnection: function() {
+                console.log('Test connection called');
+                return Promise.resolve({ success: true });
+            },
+            hasCapability: function(capability) {
+                return true; // For testing
+            },
+            showNotification: function(type, message) {
+                console.log(`Notification (${type}): ${message}`);
+            },
+            showUpgradePrompt: function(feature, message) {
+                console.log(`Upgrade prompt: ${feature} - ${message}`);
+            }
+        };
+    }
     
 })(jQuery);

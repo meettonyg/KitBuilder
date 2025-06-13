@@ -78,6 +78,9 @@ final class Media_Kit_Builder {
         
         // API Endpoints
         require_once MKB_PLUGIN_DIR . 'includes/core/class-api-endpoints.php';
+        
+        // AJAX Handlers
+        require_once MKB_PLUGIN_DIR . 'includes/ajax/class-ajax-handlers.php';
 
         // NOTE: URL Router is already loaded at the top of the file
     }

@@ -9,9 +9,9 @@
  */
 
 // Check if PremiumAccessManager already exists to prevent redeclaration
-if (typeof PremiumAccessManager === 'undefined') {
+if (typeof window.PremiumAccessManager === 'undefined') {
 
-class PremiumAccessManager {
+window.PremiumAccessManager = class {
     /**
      * Initialize the Premium Access Manager
      * 
@@ -1174,4 +1174,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 100);
 });
 
+} else {
+    console.log('PremiumAccessManager already exists, skipping redeclaration');
 } // Close the conditional declaration check
