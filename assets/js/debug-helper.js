@@ -92,17 +92,40 @@
     // Force initialization
     function forceInitialization() {
         try {
-            if (window.MediaKitBuilder && window.MediaKitBuilder.forceInit) {
-                logToConsole('Forcing initialization via MediaKitBuilder.forceInit()');
-                window.MediaKitBuilder.forceInit();
-            } else if (window.MediaKitBuilder && window.MediaKitBuilder.safeInit) {
+            if (!window.MediaKitBuilder) {
+                logToConsole('ERROR: MediaKitBuilder global object not available');
+                return;
+            }
+
+            // Ensure initQueue is properly initialized
+            if (!Array.isArray(window.MediaKitBuilder.initQueue)) {
+                logToConsole('Fixing initQueue - it was not an array');
+                window.MediaKitBuilder.initQueue = [];
+            }
+            
+            // Check if global instance exists and is initialized
+            const isInitialized = window.MediaKitBuilder.global && 
+                window.MediaKitBuilder.global.instance && 
+                window.MediaKitBuilder.global.instance.state && 
+                window.MediaKitBuilder.global.instance.state.initialized;
+            
+            if (isInitialized) {
+                logToConsole('Builder is already initialized, no action needed');
+                return;
+            }
+            
+            // Try initialization methods in order of preference
+            if (window.MediaKitBuilder.emergencyInit) {
+                logToConsole('Forcing initialization via MediaKitBuilder.emergencyInit()');
+                window.MediaKitBuilder.emergencyInit();
+            } else if (window.MediaKitBuilder.safeInit) {
                 logToConsole('Forcing initialization via MediaKitBuilder.safeInit()');
                 window.MediaKitBuilder.safeInit();
-            } else if (window.MediaKitBuilder && window.MediaKitBuilder.init) {
+            } else if (window.MediaKitBuilder.init) {
                 logToConsole('Forcing initialization via MediaKitBuilder.init()');
                 window.MediaKitBuilder.init();
             } else {
-                logToConsole('ERROR: Cannot force initialization - MediaKitBuilder not available');
+                logToConsole('ERROR: No initialization methods available');
             }
         } catch (error) {
             logToConsole(`ERROR: Force initialization failed: ${error.message}`);

@@ -12,8 +12,10 @@
         window.MediaKitBuilder = {};
     }
     
-    // 2. Create a fresh initialization queue
+    // 2. Create a fresh initialization queue if it doesn't exist
+if (!Array.isArray(window.MediaKitBuilder.initQueue)) {
     window.MediaKitBuilder.initQueue = [];
+}
     
     // 3. Flag to ensure initialization only runs once
     let hasInitialized = false;
@@ -101,10 +103,17 @@
     window.MediaKitBuilder.init = function() {
         console.log('MediaKitBuilder.init called');
 
+        // Check if already initialized to prevent duplicate calls
+        if (hasInitialized) {
+            console.log('Already initialized, skipping redundant init call');
+            return;
+        }
+
         // Check if the builder instance exists
         if (window.MediaKitBuilder.global && window.MediaKitBuilder.global.instance) {
             if (typeof window.MediaKitBuilder.global.instance.init === 'function') {
                 window.MediaKitBuilder.global.instance.init();
+                hasInitialized = true;
             }
         } else {
             // Flag for later initialization
@@ -114,12 +123,19 @@
 
     /**
      * Run the initializers when the DOM is fully loaded.
+     * Use a single initialization path to prevent race conditions.
      */
+    function ensureInitializersRun() {
+        if (!hasInitialized) {
+            runInitializers();
+        }
+    }
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', runInitializers);
+        document.addEventListener('DOMContentLoaded', ensureInitializersRun);
     } else {
         // DOM is already ready
-        setTimeout(runInitializers, 0);
+        setTimeout(ensureInitializersRun, 0);
     }
 
     console.log('✅ Media Kit Builder Standalone Initializer is ready');

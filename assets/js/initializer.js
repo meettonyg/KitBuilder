@@ -16,6 +16,12 @@ window.MediaKitBuilder.global = window.MediaKitBuilder.global || {};
 window.MediaKitBuilder.performance = window.MediaKitBuilder.performance || {};
 window.MediaKitBuilder.errors = window.MediaKitBuilder.errors || [];
 
+// Ensure initQueue is properly initialized
+if (!Array.isArray(window.MediaKitBuilder.initQueue)) {
+    console.log('Fixing initQueue in initializer.js - it was not an array');
+    window.MediaKitBuilder.initQueue = [];
+}
+
 // Track initialization stages for debugging
 window.MediaKitBuilder.performance.loadStart = window.MediaKitBuilder.performance.loadStart || Date.now();
 window.MediaKitBuilder.performance.stages = window.MediaKitBuilder.performance.stages || {
@@ -511,34 +517,58 @@ window.MediaKitBuilder.emergencyInit = function() {
     try {
         console.log('Running emergency initialization...');
         
+        // Ensure initQueue is properly initialized
+        if (!Array.isArray(window.MediaKitBuilder.initQueue)) {
+            console.log('Fixing initQueue in emergencyInit - it was not an array');
+            window.MediaKitBuilder.initQueue = [];
+        }
+        
+        // Check if already properly initialized
+        const isInitialized = window.MediaKitBuilder.global && 
+            window.MediaKitBuilder.global.instance && 
+            window.MediaKitBuilder.global.instance.state && 
+            window.MediaKitBuilder.global.instance.state.initialized;
+            
+        if (isInitialized) {
+            console.log('Builder already initialized, skipping emergency init');
+            return;
+        }
+        
         // Check if initialization already happened
         if (window.MediaKitBuilder.performance.stages.coreInitialized) {
-            console.log('Core already initialized, skipping emergency init');
+            console.log('Core already initialized according to performance stages, skipping emergency init');
             return;
         }
         
         // Check if builder instance exists
-        if (window.MediaKitBuilder.global.instance) {
+        if (window.MediaKitBuilder.global && window.MediaKitBuilder.global.instance) {
             console.log('Builder instance exists, calling init()');
             if (typeof window.MediaKitBuilder.global.instance.init === 'function') {
                 window.MediaKitBuilder.global.instance.init();
                 window.MediaKitBuilder.performance.stages.emergencyInit = Date.now();
+                window.MediaKitBuilder.performance.stages.coreInitialized = Date.now();
             } else {
                 console.error('Builder instance exists but init() method is missing');
             }
-        } else if (typeof window.MediaKitBuilder.Core === 'function') {
+        } else if (window.MediaKitBuilder.Core && typeof window.MediaKitBuilder.Core === 'function') {
             // Create instance
             console.log('Creating new builder instance using Core constructor');
-            const instance = new window.MediaKitBuilder.Core({
-                debugging: true,
-                autoInitialize: true
-            });
-            window.MediaKitBuilder.global.instance = instance;
-            window.MediaKitBuilder.performance.stages.instanceCreated = Date.now();
-            
-            if (typeof instance.init === 'function') {
-                instance.init();
-                window.MediaKitBuilder.performance.stages.emergencyInit = Date.now();
+            try {
+                const instance = new window.MediaKitBuilder.Core({
+                    debugging: true,
+                    autoInitialize: true
+                });
+                window.MediaKitBuilder.global.instance = instance;
+                window.MediaKitBuilder.performance.stages.instanceCreated = Date.now();
+                
+                if (typeof instance.init === 'function') {
+                    instance.init();
+                    window.MediaKitBuilder.performance.stages.emergencyInit = Date.now();
+                    window.MediaKitBuilder.performance.stages.coreInitialized = Date.now();
+                }
+            } catch (instanceError) {
+                console.error('Error creating instance:', instanceError);
+                window.MediaKitBuilder.logError(instanceError, 'instance creation');
             }
         } else {
             console.error('Cannot force initialization: Core constructor not found');
@@ -563,6 +593,17 @@ jQuery(document).ready(function() {
     
     // Set up emergency initialization after a timeout
     setTimeout(function() {
+        // Check if already properly initialized to avoid redundant emergency init
+        const isInitialized = window.MediaKitBuilder.global && 
+            window.MediaKitBuilder.global.instance && 
+            window.MediaKitBuilder.global.instance.state && 
+            window.MediaKitBuilder.global.instance.state.initialized;
+            
+        if (isInitialized) {
+            console.log('Builder already initialized, skipping emergency init');
+            return;
+        }
+            
         if (!window.MediaKitBuilder.performance.stages.coreInitialized) {
             console.log('Builder not initialized after timeout, running emergency init');
             window.MediaKitBuilder.emergencyInit();
