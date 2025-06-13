@@ -291,6 +291,17 @@ class Media_Kit_Builder {
             array(),
             MEDIA_KIT_BUILDER_VERSION
         );
+		
+// Temporarily load the performance validation script if the URL parameter is present
+if (isset($_GET['test']) && $_GET['test'] === 'performance') {
+    wp_enqueue_script(
+        'media-kit-builder-performance-validation',
+        MEDIA_KIT_BUILDER_PLUGIN_URL . 'tests/integration/performance-validation.js',
+        array('media-kit-builder-exports'), // Depends on your main scripts
+        MEDIA_KIT_BUILDER_VERSION,
+        true // Load in the footer
+    );
+}
         
         // Pass data to JavaScript
         wp_localize_script('media-kit-builder-wordpress', 'mkbData', array(
