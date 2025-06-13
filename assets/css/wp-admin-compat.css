@@ -1,340 +1,398 @@
 /**
  * WordPress Admin Compatibility Styles
  * Ensures Media Kit Builder integrates seamlessly with WordPress admin
- * 
- * @package MediaKitBuilder
- * @since 1.0.0
  */
 
+/*==============================
+  1. ADMIN VARIABLES
+==============================*/
+.mkb-builder-admin {
+  /* WP Admin Colors */
+  --wp-admin-primary: #0073aa;
+  --wp-admin-primary-hover: #005a87;
+  --wp-admin-bg: #f0f0f1;
+  --wp-admin-white: #ffffff;
+  --wp-admin-border: #c3c4c7;
+  --wp-admin-text: #1d2327;
+  --wp-admin-text-light: #646970;
+  --wp-admin-success: #00a32a;
+  --wp-admin-warning: #dba617;
+  --wp-admin-error: #d63638;
+  
+  /* Admin Spacing */
+  --wp-admin-spacing-sm: 8px;
+  --wp-admin-spacing-md: 15px;
+  --wp-admin-spacing-lg: 20px;
+}
+
+/*==============================
+  2. ADMIN INTEGRATION
+==============================*/
 /* WordPress Admin Integration */
 .mkb-admin-wrap {
-    margin: 20px 0;
+  margin: 20px 0;
 }
 
 .mkb-admin-wrap .notice,
 .mkb-admin-wrap .error,
 .mkb-admin-wrap .updated {
-    margin: 5px 0 15px;
+  margin: 5px 0 15px;
 }
 
 /* Fix WordPress admin conflicts */
 .mkb-builder-container * {
-    box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 .mkb-builder-container input,
 .mkb-builder-container select,
 .mkb-builder-container textarea {
-    font-family: inherit;
+  font-family: inherit;
 }
 
+/*==============================
+  3. ADMIN BUTTONS
+==============================*/
 /* WordPress button compatibility */
 .mkb-btn {
-    display: inline-block;
-    padding: 8px 16px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 500;
-    text-decoration: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.mkb-btn-primary {
-    background: #0073aa;
-    color: white;
-    border-color: #006799;
+.mkb-btn--primary {
+  background: var(--wp-admin-primary);
+  color: white;
+  border-color: var(--wp-admin-primary-hover);
 }
 
-.mkb-btn-primary:hover {
-    background: #005a87;
-    color: white;
+.mkb-btn--primary:hover {
+  background: var(--wp-admin-primary-hover);
+  color: white;
 }
 
-.mkb-btn-secondary {
-    background: #f1f1f1;
-    color: #333;
-    border-color: #ccc;
+.mkb-btn--secondary {
+  background: #f1f1f1;
+  color: #333;
+  border-color: #ccc;
 }
 
-.mkb-btn-secondary:hover {
-    background: #e0e0e0;
-    color: #333;
+.mkb-btn--secondary:hover {
+  background: #e0e0e0;
+  color: #333;
 }
 
+/*==============================
+  4. ADMIN FORMS
+==============================*/
 /* WordPress form compatibility */
 .mkb-form-field {
-    margin-bottom: 15px;
+  margin-bottom: 15px;
 }
 
 .mkb-form-label {
-    display: block;
-    font-weight: 600;
-    margin-bottom: 5px;
+  display: block;
+  font-weight: 600;
+  margin-bottom: 5px;
 }
 
 .mkb-form-input {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
 }
 
 .mkb-form-input:focus {
-    border-color: #0073aa;
-    outline: none;
-    box-shadow: 0 0 0 1px #0073aa;
+  border-color: var(--wp-admin-primary);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--wp-admin-primary);
 }
 
+/*==============================
+  5. ADMIN COLOR SCHEMES
+==============================*/
 /* WordPress color scheme compatibility */
-body.admin-color-fresh .mkb-btn-primary {
-    background: #0073aa;
-    border-color: #006799;
+body.admin-color-fresh .mkb-btn--primary {
+  background: #0073aa;
+  border-color: #006799;
 }
 
-body.admin-color-light .mkb-btn-primary {
-    background: #04a4cc;
-    border-color: #037d99;
+body.admin-color-light .mkb-btn--primary {
+  background: #04a4cc;
+  border-color: #037d99;
 }
 
-body.admin-color-blue .mkb-btn-primary {
-    background: #096484;
-    border-color: #07526c;
+body.admin-color-blue .mkb-btn--primary {
+  background: #096484;
+  border-color: #07526c;
 }
 
-body.admin-color-coffee .mkb-btn-primary {
-    background: #46403c;
-    border-color: #383330;
+body.admin-color-coffee .mkb-btn--primary {
+  background: #46403c;
+  border-color: #383330;
 }
 
-body.admin-color-ectoplasm .mkb-btn-primary {
-    background: #523f6d;
-    border-color: #46365d;
+body.admin-color-ectoplasm .mkb-btn--primary {
+  background: #523f6d;
+  border-color: #46365d;
 }
 
-body.admin-color-midnight .mkb-btn-primary {
-    background: #e14d43;
-    border-color: #dd382d;
+body.admin-color-midnight .mkb-btn--primary {
+  background: #e14d43;
+  border-color: #dd382d;
 }
 
-body.admin-color-ocean .mkb-btn-primary {
-    background: #627c83;
-    border-color: #576e74;
+body.admin-color-ocean .mkb-btn--primary {
+  background: #627c83;
+  border-color: #576e74;
 }
 
-body.admin-color-sunrise .mkb-btn-primary {
-    background: #dd823b;
-    border-color: #d97426;
+body.admin-color-sunrise .mkb-btn--primary {
+  background: #dd823b;
+  border-color: #d97426;
 }
 
+/*==============================
+  6. MEDIA LIBRARY
+==============================*/
 /* WordPress media library compatibility */
 .mkb-media-library-btn {
-    background: #0073aa;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
+  background: var(--wp-admin-primary);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
 }
 
 .mkb-media-library-btn:hover {
-    background: #005a87;
+  background: var(--wp-admin-primary-hover);
 }
 
+/*==============================
+  7. DASHBOARD WIDGETS
+==============================*/
 /* WordPress dashboard widget styles */
 .mkb-dashboard-widget {
-    background: white;
-    border: 1px solid #c3c4c7;
-    border-radius: 4px;
-    padding: 15px;
+  background: var(--wp-admin-white);
+  border: 1px solid var(--wp-admin-border);
+  border-radius: 4px;
+  padding: 15px;
 }
 
 .mkb-dashboard-widget h3 {
-    margin: 0 0 15px;
-    font-size: 16px;
-    font-weight: 600;
+  margin: 0 0 15px;
+  font-size: 16px;
+  font-weight: 600;
 }
 
+/*==============================
+  8. ADMIN MENU
+==============================*/
 /* WordPress admin menu integration */
 #adminmenu .mkb-menu-icon:before {
-    content: '\f481';
-    font-family: dashicons;
+  content: '\f481';
+  font-family: dashicons;
 }
 
+/*==============================
+  9. RESPONSIVE ADMIN
+==============================*/
 /* WordPress responsive compatibility */
 @media screen and (max-width: 782px) {
-    .mkb-admin-wrap {
-        margin: 10px;
-    }
-    
-    .mkb-btn {
-        padding: 10px 14px;
-        font-size: 16px;
-    }
-    
-    .mkb-form-input {
-        padding: 10px 14px;
-        font-size: 16px;
-    }
+  .mkb-admin-wrap {
+    margin: 10px;
+  }
+  
+  .mkb-btn {
+    padding: 10px 14px;
+    font-size: 16px;
+  }
+  
+  .mkb-form-input {
+    padding: 10px 14px;
+    font-size: 16px;
+  }
 }
 
+/*==============================
+  10. ACCESSIBILITY
+==============================*/
 /* WordPress accessibility improvements */
 .mkb-sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Focus indicators */
 .mkb-btn:focus,
 .mkb-form-input:focus {
-    outline: 2px solid #0073aa;
-    outline-offset: 2px;
+  outline: 2px solid var(--wp-admin-primary);
+  outline-offset: 2px;
 }
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
-    .mkb-btn-primary {
-        background: #000;
-        color: #fff;
-        border-color: #000;
-    }
-    
-    .mkb-form-input {
-        border-color: #000;
-    }
+  .mkb-btn--primary {
+    background: #000;
+    color: #fff;
+    border-color: #000;
+  }
+  
+  .mkb-form-input {
+    border-color: #000;
+  }
 }
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
-    .mkb-btn,
-    .mkb-form-input {
-        transition: none;
-    }
+  .mkb-btn,
+  .mkb-form-input {
+    transition: none;
+  }
 }
 
+/*==============================
+  11. ADMIN BAR
+==============================*/
 /* WordPress admin bar compatibility */
 .admin-bar .mkb-fixed-header {
-    top: 32px;
+  top: 32px;
 }
 
 @media screen and (max-width: 782px) {
-    .admin-bar .mkb-fixed-header {
-        top: 46px;
-    }
+  .admin-bar .mkb-fixed-header {
+    top: 46px;
+  }
 }
 
+/*==============================
+  12. BLOCK EDITOR
+==============================*/
 /* WordPress editor compatibility */
 .block-editor-page .mkb-block-preview {
-    background: #f0f0f1;
-    border: 1px solid #c3c4c7;
-    border-radius: 4px;
-    padding: 20px;
-    text-align: center;
+  background: var(--wp-admin-bg);
+  border: 1px solid var(--wp-admin-border);
+  border-radius: 4px;
+  padding: 20px;
+  text-align: center;
 }
 
 .block-editor-page .mkb-block-preview h3 {
-    margin: 0 0 10px;
-    color: #1d2327;
+  margin: 0 0 10px;
+  color: var(--wp-admin-text);
 }
 
+/*==============================
+  13. ADMIN NOTIFICATIONS
+==============================*/
 /* WordPress notification styles */
 .mkb-notice {
-    background: #fff;
-    border: 1px solid #c3c4c7;
-    border-left-width: 4px;
-    border-radius: 0 4px 4px 0;
-    margin: 5px 0 15px;
-    padding: 12px;
+  background: var(--wp-admin-white);
+  border: 1px solid var(--wp-admin-border);
+  border-left-width: 4px;
+  border-radius: 0 4px 4px 0;
+  margin: 5px 0 15px;
+  padding: 12px;
 }
 
-.mkb-notice.notice-success {
-    border-left-color: #00a32a;
+.mkb-notice--success {
+  border-left-color: var(--wp-admin-success);
 }
 
-.mkb-notice.notice-warning {
-    border-left-color: #dba617;
+.mkb-notice--warning {
+  border-left-color: var(--wp-admin-warning);
 }
 
-.mkb-notice.notice-error {
-    border-left-color: #d63638;
+.mkb-notice--error {
+  border-left-color: var(--wp-admin-error);
 }
 
-.mkb-notice.notice-info {
-    border-left-color: #72aee6;
+.mkb-notice--info {
+  border-left-color: #72aee6;
 }
 
+/*==============================
+  14. ADMIN MODALS
+==============================*/
 /* WordPress modal compatibility */
 .mkb-modal-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    z-index: 160000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 160000;
 }
 
 .mkb-modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    border-radius: 4px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-    max-width: 90vw;
-    max-height: 90vh;
-    overflow: auto;
-    z-index: 160001;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+  z-index: 160001;
 }
 
-.mkb-modal-header {
-    padding: 20px;
-    border-bottom: 1px solid #c3c4c7;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.mkb-modal__header {
+  padding: 20px;
+  border-bottom: 1px solid var(--wp-admin-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.mkb-modal-title {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
+.mkb-modal__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
 }
 
-.mkb-modal-close {
-    background: none;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    padding: 4px;
-    color: #646970;
+.mkb-modal__close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--wp-admin-text-light);
 }
 
-.mkb-modal-close:hover {
-    color: #d63638;
+.mkb-modal__close:hover {
+  color: var(--wp-admin-error);
 }
 
-.mkb-modal-body {
-    padding: 20px;
+.mkb-modal__body {
+  padding: 20px;
 }
 
-.mkb-modal-footer {
-    padding: 20px;
-    border-top: 1px solid #c3c4c7;
-    text-align: right;
+.mkb-modal__footer {
+  padding: 20px;
+  border-top: 1px solid var(--wp-admin-border);
+  text-align: right;
 }
 
-.mkb-modal-footer .mkb-btn + .mkb-btn {
-    margin-left: 10px;
+.mkb-modal__footer .mkb-btn + .mkb-btn {
+  margin-left: 10px;
 }

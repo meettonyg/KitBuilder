@@ -18,7 +18,10 @@ function mkb_admin_enqueue_assets($hook) {
     }
     // You can add admin-specific builder assets here if needed in the future
     // For now, the router handles the main builder.
-    wp_enqueue_style('mkb-admin-styles', MKB_PLUGIN_URL . 'assets/css/admin.css', [], MKB_VERSION);
+    // Load admin styles with proper dependencies
+    wp_enqueue_style('mkb-core-styles', MKB_PLUGIN_URL . 'assets/css/builder.css', [], MKB_VERSION);
+    wp_enqueue_style('mkb-admin-compat', MKB_PLUGIN_URL . 'assets/css/wp-admin-compat.css', ['mkb-core-styles'], MKB_VERSION);
+    wp_enqueue_style('mkb-admin-styles', MKB_PLUGIN_URL . 'assets/css/admin.css', ['mkb-core-styles', 'mkb-admin-compat'], MKB_VERSION);
 }
 add_action('admin_enqueue_scripts', 'mkb_admin_enqueue_assets');
 
@@ -31,7 +34,14 @@ function mkb_enqueue_public_view_assets() {
         return;
     }
 
-    wp_enqueue_style('mkb-frontend-styles', MKB_PLUGIN_URL . 'assets/css/frontend.css', [], MKB_VERSION);
+    // Load our core CSS first (for base variables)
+    wp_enqueue_style('mkb-core-styles', MKB_PLUGIN_URL . 'assets/css/builder.css', [], MKB_VERSION);
+    
+    // Load component styles (depends on core)
+    wp_enqueue_style('mkb-component-styles', MKB_PLUGIN_URL . 'assets/css/components.css', ['mkb-core-styles'], MKB_VERSION);
+    
+    // Load frontend-specific styles last
+    wp_enqueue_style('mkb-frontend-styles', MKB_PLUGIN_URL . 'assets/css/frontend.css', ['mkb-core-styles', 'mkb-component-styles'], MKB_VERSION);
     wp_enqueue_script('mkb-public-viewer', MKB_PLUGIN_URL . 'assets/js/public-viewer.js', ['jquery'], MKB_VERSION, true);
 
     wp_localize_script('mkb-public-viewer', 'mkbPreviewData', [

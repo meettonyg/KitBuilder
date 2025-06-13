@@ -302,11 +302,27 @@ class Media_Kit_Builder {
             true
         );
         
-        // Enqueue styles
+        // Enqueue core builder styles
         wp_enqueue_style(
             'media-kit-builder',
             MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/css/builder.css',
             array(),
+            MEDIA_KIT_BUILDER_VERSION
+        );
+        
+        // Enqueue component styles
+        wp_enqueue_style(
+            'media-kit-builder-components',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/css/components.css',
+            array('media-kit-builder'),
+            MEDIA_KIT_BUILDER_VERSION
+        );
+        
+        // Enqueue WordPress admin compatibility styles
+        wp_enqueue_style(
+            'media-kit-builder-wp-admin',
+            MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/css/wp-admin-compat.css',
+            array('media-kit-builder', 'media-kit-builder-components'),
             MEDIA_KIT_BUILDER_VERSION
         );
 		
@@ -458,11 +474,27 @@ if (isset($_GET['test']) && $_GET['test'] === 'performance') {
                 true
             );
             
-            // Enqueue styles
+            // Enqueue core builder styles
             wp_enqueue_style(
                 'media-kit-builder',
                 MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/css/builder.css',
                 array(),
+                MEDIA_KIT_BUILDER_VERSION
+            );
+            
+            // Enqueue component styles
+            wp_enqueue_style(
+                'media-kit-builder-components',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/css/components.css',
+                array('media-kit-builder'),
+                MEDIA_KIT_BUILDER_VERSION
+            );
+            
+            // Enqueue frontend styles for public-facing pages
+            wp_enqueue_style(
+                'media-kit-builder-frontend',
+                MEDIA_KIT_BUILDER_PLUGIN_URL . 'assets/css/frontend.css',
+                array('media-kit-builder', 'media-kit-builder-components'),
                 MEDIA_KIT_BUILDER_VERSION
             );
             
