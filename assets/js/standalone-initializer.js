@@ -1,5 +1,5 @@
 /**
- * Media Kit Builder - Standalone Initializer (Revised)
+ * Media Kit Builder - Standalone Initializer
  *
  * This script is the ONLY initializer needed. It sets up the global namespace
  * and a reliable queue to prevent race conditions.
@@ -7,13 +7,13 @@
 (function() {
     'use strict';
 
-    // 1. Set up the global namespace immediately and safely
-    window.MediaKitBuilder = window.MediaKitBuilder || {};
-    
-    // 2. Create an initialization queue - ensure it's an array
-    if (!window.MediaKitBuilder.initQueue || !Array.isArray(window.MediaKitBuilder.initQueue)) {
-        window.MediaKitBuilder.initQueue = [];
+    // 1. Global safety check: ensure our global object exists and is clean
+    if (typeof window.MediaKitBuilder === 'undefined' || typeof window.MediaKitBuilder !== 'object') {
+        window.MediaKitBuilder = {};
     }
+    
+    // 2. Create a fresh initialization queue
+    window.MediaKitBuilder.initQueue = [];
     
     // 3. Flag to ensure initialization only runs once
     let hasInitialized = false;
@@ -25,22 +25,33 @@
         if (hasInitialized) {
             return; // Prevent multiple runs
         }
-        hasInitialized = true;
         
-        console.log('🚀 Firing all Media Kit Builder initializers...');
+        console.log('🚀 Running Media Kit Builder initializers...');
         
+        // Always verify the queue is an array before proceeding
         if (!Array.isArray(window.MediaKitBuilder.initQueue)) {
             console.warn('MediaKitBuilder.initQueue is not an array. Initializing empty queue.');
             window.MediaKitBuilder.initQueue = [];
         }
         
-        window.MediaKitBuilder.initQueue.forEach(fn => {
+        // Get a copy of the queue to prevent modification while iterating
+        const queueCopy = window.MediaKitBuilder.initQueue.slice();
+        
+        // Mark as initialized before running functions to prevent re-entry
+        hasInitialized = true;
+        
+        // Run each initializer function
+        queueCopy.forEach(function(fn) {
             try {
-                fn();
+                if (typeof fn === 'function') {
+                    fn();
+                }
             } catch (error) {
                 console.error('Error running initializer function:', error);
             }
         });
+        
+        console.log('✅ Media Kit Builder initialization complete');
     }
 
     /**
@@ -66,15 +77,21 @@
      * Safe initialization function that adds to the queue.
      */
     window.MediaKitBuilder.safeInit = function(fn) {
+        if (hasInitialized) {
+            // If already initialized, run the function immediately
+            if (typeof fn === 'function') {
+                try {
+                    fn();
+                } catch (error) {
+                    console.error('Error running initialization function:', error);
+                }
+            }
+            return;
+        }
+        
+        // Otherwise, add to the queue
         if (typeof fn === 'function') {
             window.MediaKitBuilder.initQueue.push(fn);
-        } else {
-            // If no function is provided, add a default initializer
-            window.MediaKitBuilder.initQueue.push(() => {
-                if (typeof window.MediaKitBuilder.checkElements === 'function') {
-                    window.MediaKitBuilder.checkElements();
-                }
-            });
         }
     };
 
@@ -96,19 +113,14 @@
     };
 
     /**
-     * Define a global namespace for sharing data across scripts.
-     */
-    window.MediaKitBuilder.global = window.MediaKitBuilder.global || {};
-
-    /**
      * Run the initializers when the DOM is fully loaded.
      */
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', runInitializers);
     } else {
         // DOM is already ready
-        runInitializers();
+        setTimeout(runInitializers, 0);
     }
 
-    console.log('✅ Media Kit Builder Standalone Initializer is ready and waiting for DOM load.');
+    console.log('✅ Media Kit Builder Standalone Initializer is ready');
 })();

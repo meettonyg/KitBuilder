@@ -61,7 +61,7 @@ class MKB_AJAX_Handlers {
     public function test_ajax() {
         // Check nonce for authenticated users
         if (is_user_logged_in()) {
-            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'media_kit_builder')) {
+            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'media_kit_builder_nonce')) {
                 wp_send_json_error(array(
                     'message' => 'Invalid security token'
                 ));
@@ -84,7 +84,7 @@ class MKB_AJAX_Handlers {
      */
     public function save_kit() {
         // Check nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'media_kit_builder')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'media_kit_builder_nonce')) {
             wp_send_json_error(array(
                 'message' => 'Invalid security token'
             ));
@@ -184,7 +184,7 @@ class MKB_AJAX_Handlers {
      */
     public function load_kit() {
         // Check nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'media_kit_builder')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'media_kit_builder_nonce')) {
             wp_send_json_error(array(
                 'message' => 'Invalid security token'
             ));
@@ -252,7 +252,7 @@ class MKB_AJAX_Handlers {
      */
     public function export_kit() {
         // Check nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'media_kit_builder')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'media_kit_builder_nonce')) {
             wp_send_json_error(array(
                 'message' => 'Invalid security token'
             ));
@@ -348,7 +348,7 @@ class MKB_AJAX_Handlers {
      */
     public function report_error() {
         // Check nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'media_kit_builder')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'media_kit_builder_nonce')) {
             wp_send_json_error(array(
                 'message' => 'Invalid security token'
             ));

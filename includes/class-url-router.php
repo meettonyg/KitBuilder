@@ -124,6 +124,8 @@ class Media_Kit_Builder_URL_Router {
         wp_enqueue_script('mkb-core-builder', $assets_url . 'js/builder.js', ['jquery', 'mkb-compatibility'], $version, true);
         wp_enqueue_script('mkb-section-management', $assets_url . 'js/section-management.js', ['mkb-core-builder'], $version, true);
         wp_enqueue_script('mkb-template-manager', $assets_url . 'js/template-manager.js', ['mkb-core-builder'], $version, true);
+        
+        // Premium access should only be loaded once and depend on core-builder
         wp_enqueue_script('mkb-premium-access', $assets_url . 'js/premium-access-control.js', ['mkb-core-builder'], $version, true);
         
         // The WordPress adapter should be one of the last to load
