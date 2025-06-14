@@ -22,6 +22,11 @@ define('MEDIA_KIT_BUILDER_FILE', __FILE__);
 define('MEDIA_KIT_BUILDER_PATH', plugin_dir_path(__FILE__));
 define('MEDIA_KIT_BUILDER_URL', plugin_dir_url(__FILE__));
 
+// Enable debugging
+if (defined('WP_DEBUG') && WP_DEBUG) {
+    error_log('Media Kit Builder initializing v' . MKB_VERSION);
+}
+
 // CRITICAL: Initialize URL router early - before any other plugin functionality
 require_once MKB_PLUGIN_DIR . 'includes/class-url-router.php';
 $media_kit_builder_router = new Media_Kit_Builder_URL_Router();
@@ -41,124 +46,91 @@ function Media_Kit_Builder() {
 // Initialize the plugin
 add_action('plugins_loaded', 'Media_Kit_Builder');
 
-/**
- * Inject JavaScript to replace the AJAX endpoint
- */
-function mkb_inject_ajax_replacer() {
-    // Only on frontend pages with the shortcode
-    if (!is_admin() && is_page() && has_shortcode(get_the_content(), 'media_kit_builder')) {
-        ?>
-        <script type="text/javascript">
-            // Execute this script as early as possible
-            (function() {
-                // Store the original fetch function
-                var originalFetch = window.fetch;
-                
-                // Replace fetch with our modified version
-                window.fetch = function() {
-                    var url = arguments[0];
-                    var options = arguments[1] || {};
-                    
-                    // Check if this is an AJAX request for our plugin's test connection
-                    if (typeof url === 'string' && 
-                        url.includes('admin-ajax.php') && 
-                        options && options.body && 
-                        options.body.includes('action=mkb_test_connection')) {
-                        
-                        // Replace the URL with our direct handler
-                        arguments[0] = '<?php echo MKB_PLUGIN_URL; ?>direct-ajax.php?action=mkb_test_connection';
-                        
-                        // Make it a GET request with no body for simplicity
-                        options.method = 'GET';
-                        delete options.body;
-                        arguments[1] = options;
-                        
-                        console.log('Media Kit Builder: Intercepted test connection request', arguments);
-                    }
-                    
-                    // Call the original fetch with our modified arguments
-                    return originalFetch.apply(this, arguments);
-                };
-                
-                // Also replace jQuery's AJAX if it exists
-                if (window.jQuery) {
-                    var originalAjax = jQuery.ajax;
-                    
-                    jQuery.ajax = function() {
-                        var settings = arguments[0];
-                        
-                        // Check if this is a test connection request
-                        if (settings && 
-                            settings.url && 
-                            settings.url.includes('admin-ajax.php') && 
-                            settings.data && 
-                            settings.data.includes('action=mkb_test_connection')) {
-                            
-                            // Replace with our direct handler
-                            settings.url = '<?php echo MKB_PLUGIN_URL; ?>direct-ajax.php';
-                            settings.type = 'GET';
-                            settings.data = { action: 'mkb_test_connection' };
-                            
-                            console.log('Media Kit Builder: Intercepted jQuery test connection request', settings);
-                        }
-                        
-                        // Call the original with our modified settings
-                        return originalAjax.apply(this, arguments);
-                    };
-                }
-                
-                // When the DOM is ready, we'll add some global variables
-                document.addEventListener('DOMContentLoaded', function() {
-                    // Add our direct URL to the global config
-                    if (window.mkbData) {
-                        window.mkbData.directUrl = '<?php echo MKB_PLUGIN_URL; ?>direct-ajax.php';
-                        window.mkbData.basicUrl = '<?php echo MKB_PLUGIN_URL; ?>basic.php';
-                        
-                        console.log('Media Kit Builder: Added direct handler URLs to global config');
-                    }
-                    
-                    // Create a test function
-                    window.testMkbDirectConnection = function() {
-                        fetch('<?php echo MKB_PLUGIN_URL; ?>direct-ajax.php?action=mkb_test_connection')
-                            .then(function(response) { return response.json(); })
-                            .then(function(data) {
-                                console.log('Media Kit Builder: Direct connection test successful', data);
-                            })
-                            .catch(function(error) {
-                                console.error('Media Kit Builder: Direct connection test failed', error);
-                            });
-                    };
-                    
-                    // Run the test after a short delay
-                    setTimeout(window.testMkbDirectConnection, 1000);
-                });
-            })();
-        </script>
-        <?php
+// Register AJAX handlers directly here to ensure they're available
+function mkb_register_direct_ajax_handlers() {
+    add_action('wp_ajax_mkb_test_connection', 'mkb_direct_test_connection');
+    add_action('wp_ajax_nopriv_mkb_test_connection', 'mkb_direct_test_connection');
+}
+add_action('init', 'mkb_register_direct_ajax_handlers', 5);
+
+function mkb_direct_test_connection() {
+    // Send success response without verifying nonce
+    wp_send_json_success(array(
+        'message' => 'Connection successful',
+        'timestamp' => date('c'),
+        'plugin_version' => MKB_VERSION,
+        'plugin_status' => 'active'
+    ));
+    exit;
+}
+
+// Create symbolic links for standalone mode
+function mkb_create_standalone_symlinks() {
+    // Only run this in admin and only once per session
+    if (!is_admin() || get_transient('mkb_symlinks_created')) {
+        return;
+    }
+    
+    // Get WordPress content directories
+    $wp_content_dir = WP_CONTENT_DIR;
+    $wp_content_url = content_url();
+    
+    // Create directory if it doesn't exist
+    if (!file_exists($wp_content_dir . '/plugins/css')) {
+        wp_mkdir_p($wp_content_dir . '/plugins/css');
+    }
+    
+    if (!file_exists($wp_content_dir . '/plugins/js')) {
+        wp_mkdir_p($wp_content_dir . '/plugins/js');
+    }
+    
+    // Create symbolic links to our CSS and JS files
+    if (file_exists(MKB_PLUGIN_DIR . 'dist/css/media-kit-builder.css')) {
+        @copy(
+            MKB_PLUGIN_DIR . 'dist/css/media-kit-builder.css',
+            $wp_content_dir . '/plugins/css/guestify-builder.css'
+        );
+        
+        @copy(
+            MKB_PLUGIN_DIR . 'dist/js/media-kit-builder.js',
+            $wp_content_dir . '/plugins/js/guestify-builder.js'
+        );
+        
+        // Set transient to avoid doing this on every page load
+        set_transient('mkb_symlinks_created', true, DAY_IN_SECONDS);
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Media Kit Builder: Created symlinks for standalone mode');
+        }
     }
 }
-add_action('wp_head', 'mkb_inject_ajax_replacer', 1); // Priority 1 to load as early as possible
+add_action('admin_init', 'mkb_create_standalone_symlinks');
 
-/**
- * Standard AJAX handler for WordPress
- */
-function mkb_register_ajax_handlers() {
-    add_action('wp_ajax_mkb_test_connection', 'mkb_test_connection_handler');
-    add_action('wp_ajax_nopriv_mkb_test_connection', 'mkb_test_connection_handler');
-}
-add_action('init', 'mkb_register_ajax_handlers');
-
-/**
- * Handle test connection AJAX requests
- */
-function mkb_test_connection_handler() {
-    // Skip nonce verification for this test endpoint
+// Add AJAX test points at multiple URLs to ensure compatibility
+function mkb_add_test_points() {
+    // Create endpoint files in plugin root
+    $test_file = MKB_PLUGIN_DIR . 'test-connection.php';
     
-    // Send the response
-    wp_send_json_success(array(
-        'message' => 'Connection successful (wp_ajax)',
-        'timestamp' => date('c'),
-        'plugin_status' => 'active',
-        'test_type' => 'wp_ajax'
-    ));
+    if (!file_exists($test_file)) {
+        $content = '<?php
+// Set JSON header
+header("Content-Type: application/json");
+
+// Return success response
+echo json_encode([
+    "success" => true,
+    "message" => "Connection successful (direct endpoint)",
+    "timestamp" => date("c"),
+    "plugin_version" => "' . MKB_VERSION . '",
+    "plugin_status" => "active"
+]);
+exit;';
+        
+        file_put_contents($test_file, $content);
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Media Kit Builder: Created test connection file');
+        }
+    }
 }
+add_action('admin_init', 'mkb_add_test_points');
